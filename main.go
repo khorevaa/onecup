@@ -1,7 +1,8 @@
 package main
 
 import (
-	"github.com/khorevaa/go-app-template/cmd"
+	"fmt"
+	"github.com/khorevaa/onecup/cmd"
 	"github.com/urfave/cli/v2"
 	"log"
 	"os"
@@ -18,16 +19,16 @@ var (
 func main() {
 
 	app := &cli.App{
-		Name:    "go-app-template",
-		Version: version,
+		Name:    "onecup",
+		Version: buildVersion(),
 		Authors: []*cli.Author{
 			{
 				Name: "Aleksey Khorev",
 			},
 		},
-		Usage:     "Description for go-app-template",
-		Copyright: "(c) 2021 Khorevaa",
-		//Description: "Command line utilities for server 1S.Enterprise",
+		Usage:       "Application for automate update configuration for 1C. Enterprise",
+		Copyright:   "(c) 2021 Khorevaa",
+		Description: "Application for automate update configuration for 1C. Enterprise",
 	}
 
 	for _, command := range cmd.Commands {
@@ -38,4 +39,18 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+func buildVersion() string {
+	var result = version
+	if commit != "" {
+		result = fmt.Sprintf("%s\ncommit: %s", result, commit)
+	}
+	if date != "" {
+		result = fmt.Sprintf("%s\nbuilt at: %s", result, date)
+	}
+	if builtBy != "" {
+		result = fmt.Sprintf("%s\nbuilt by: %s", result, builtBy)
+	}
+	return result
 }

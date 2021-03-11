@@ -1,4 +1,4 @@
-project_name: app-template
+project_name: onecup
 
 env:
   - GO111MODULE=on
@@ -40,18 +40,18 @@ dockers:
       - 'ghcr.io/khorevaa/{{.ProjectName}}:latest'
     dockerfile: Dockerfile
     binaries:
-      - app-template
+      - onecup
     build_flag_templates:
       - "--label=org.label-schema.schema-version=1.0"
       - "--label=org.label-schema.version={{.Version}}"
       - "--label=org.label-schema.name={{.ProjectName}}"
       - "--label=com.github.actions.name={{.ProjectName}}"
-      - "--label=com.github.actions.description=Setup new app-template description"
+      - "--label=com.github.actions.description=Setup new onecup description"
       - "--label=com.github.actions.icon=terminal"
       - "--label=com.github.actions.color=blue"
-      - "--label=repository=http://github.com/khorevaa/app-template"
-      - "--label=homepage=http://github.com/khorevaa/app-template"
-      - "--label=maintainerAleksey Khorev khorevaa@gmail.com"
+      - "--label=repository=http://github.com/khorevaa/onecup"
+      - "--label=homepage=http://github.com/khorevaa/onecup"
+      - "--label=maintainer=Aleksey Khorev <khorevaa@gmail.com>"
 archives:
   - name_template: '{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}'
     replacements:
