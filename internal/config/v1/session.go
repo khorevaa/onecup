@@ -6,7 +6,7 @@ import (
 )
 
 type SessionsConfig struct {
-	Blocker       common.ConfigNamespace `rawConfig:"use,replace,required" json:"use"`
+	Blocker       common.ConfigNamespace `config:"use,replace,required" json:"use"`
 	WaitTime      time.Duration
 	BlockDuration time.Duration
 	UnlockCode    string

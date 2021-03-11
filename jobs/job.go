@@ -1,6 +1,7 @@
 package jobs
 
 import (
+	"log"
 	"sort"
 	"time"
 )
@@ -15,6 +16,7 @@ type Job interface {
 	Error() error
 
 	run(input Input) (Output, error)
+	simulate(input Input) (Output, error)
 }
 
 type Stats struct {
@@ -70,7 +72,7 @@ func (j *job) run(input Input) (Output, error) {
 
 	ctx := &Context{
 		job:     j,
-		inputs:  input,
+		params:  input,
 		outputs: make(Output),
 	}
 
@@ -79,6 +81,32 @@ func (j *job) run(input Input) (Output, error) {
 	}
 
 	ctx.currentStep = nil
+
+	return ctx.outputs, nil
+}
+
+func (j *job) simulate(input Input) (Output, error) {
+
+	log.Print("Simulate running job: " + j.name)
+	ctx := &Context{
+		job:     j,
+		params:  input,
+		outputs: make(Output),
+	}
+
+	for _, step := range j.steps {
+		log.Print("Simulate running step: " + step.Name)
+		step.Run(ctx)
+	}
+
+	log.Print("Simulate finished job: " + j.name)
+
+	ctx.currentStep = nil
+	j.err = ctx.err
+	if ctx.Fault() {
+		j.status = FaultStatus
+		return nil, j.Error()
+	}
 
 	return ctx.outputs, nil
 }

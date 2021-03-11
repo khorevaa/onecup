@@ -6,14 +6,18 @@ import (
 )
 
 type Config struct {
-	Name       string            `rawConfig:"name,required" json:"name"`
-	Uuid       string            `rawConfig:"id" json:"id"`
-	Infobase   *InfobaseConfig   `rawConfig:"infobase,replace,required" json:"infobase"`
-	Update     *UpdateConfig     `rawConfig:"update" json:"update"`
-	Enterprise *EnterpriseConfig `rawConfig:"enterprise" json:"enterprise"`
-	Extension  *ExtensionConfig  `rawConfig:"extension" json:"extension"`
-	Backup     *BackupConfig     `rawConfig:"backup" json:"backup"`
-	Sessions   *SessionsConfig   `rawConfig:"sessions" json:"sessions"`
+	Name       string            `config:"name,required" json:"name"`
+	Uuid       string            `config:"id" json:"id"`
+	Infobase   *InfobaseConfig   `config:"infobase,replace,required" json:"infobase"`
+	Update     *UpdateConfig     `config:"update" json:"update"`
+	Enterprise *EnterpriseConfig `config:"enterprise" json:"enterprise"`
+	Extension  *ExtensionConfig  `config:"extension" json:"extension"`
+	Backup     *BackupConfig     `config:"backup" json:"backup"`
+	Sessions   *SessionsConfig   `config:"sessions" json:"sessions"`
+}
+
+func init() {
+	common.RegisterConfigVersion("1.0", New)
 }
 
 func (v Config) Build(builder common.Builder) error {

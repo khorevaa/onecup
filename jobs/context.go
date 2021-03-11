@@ -5,7 +5,7 @@ import v8 "github.com/v8platform/api"
 type Context struct {
 	job         *job
 	currentStep *Step
-	inputs      Input
+	params      Input
 	outputs     Output
 	err         error
 }
@@ -32,6 +32,11 @@ func (c *Context) Out(name string, value interface{}) {
 		c.outputs = make(map[string]interface{})
 	}
 	c.outputs[name] = value
+
+	if c.params == nil {
+		c.params = make(map[string]interface{})
+	}
+	c.params[name] = value
 }
 
 func (c *Context) Param(name string) (interface{}, bool) {
@@ -64,10 +69,10 @@ func (c *Context) Options() []interface{} {
 
 func (c *Context) Value(name string) (interface{}, bool) {
 
-	if c.inputs == nil {
+	if c.params == nil {
 		return nil, false
 	}
-	value, ok := c.inputs[name]
+	value, ok := c.params[name]
 	return value, ok
 
 }

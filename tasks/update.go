@@ -9,10 +9,10 @@ import (
 
 type Update struct {
 	File             string
-	LoadConfig       bool `config:"load-config" json:"load-config"`
-	Server           bool `config:"on-server" json:"on-server"`
-	Dynamic          bool `config:"dynamic" json:"dynamic"`
-	WarningsAsErrors bool `config:"warnings-as-errors" json:"warnings-as-errors"`
+	LoadConfig       bool `json:"load-config"`
+	Server           bool `json:"on-server"`
+	Dynamic          bool `json:"dynamic"`
+	WarningsAsErrors bool `json:"warnings-as-errors"`
 }
 
 func (j *Update) Action(ctx *jobs.Context) error {

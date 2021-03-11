@@ -9,16 +9,16 @@ import (
 type InfobaseConfig struct {
 	User          string
 	Password      string
-	ConnectString common.ConfigNamespace `rawConfig:"path,replace,required" json:"path"`
+	ConnectString common.ConfigNamespace `config:"path,replace,required" json:"path"`
 }
 
 type FileInfobaseConfig struct {
-	File string `rawConfig:"file,required" json:"file"`
+	File string `config:"file,required" json:"file"`
 }
 
 type ServerInfobaseConfig struct {
-	Serv string `rawConfig:"serv,required" json:"srv"`
-	Ref  string `rawConfig:"ref,required" json:"ref"`
+	Serv string `config:"serv,required" json:"srv"`
+	Ref  string `config:"ref,required" json:"ref"`
 }
 
 func unpackInfobase(ibConfig *InfobaseConfig) (*v8.Infobase, error) {

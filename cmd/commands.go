@@ -6,7 +6,7 @@ import (
 
 var Commands = []Command{
 
-	&updateCommand{},
+	&execCommand{},
 	//&commandWithSub{
 	//	sub: []Command{
 	//		&subCommand{},

@@ -1,20 +1,19 @@
-package config
+package common
 
 import (
-	"github.com/khorevaa/onecup/internal/common"
 	"strings"
 )
 
 // VersionNamespace storing at most one configuration section by name and sub-section.
 type VersionNamespace struct {
 	version string `config:"version,required"`
-	config  common.ConfigFactory
+	config  ConfigFactory
 }
 
 // Unpack unpacks a configuration with at most one sub object. An sub object is
 // ignored if it is disabled by setting `enabled: false`. If the configuration
 // passed contains multiple active sub objects, Unpack will return an error.
-func (ns *VersionNamespace) Unpack(cfg *common.Config) error {
+func (ns *VersionNamespace) Unpack(cfg *Config) error {
 
 	fields := cfg.GetFields()
 	if len(fields) == 0 {
@@ -50,7 +49,7 @@ func (ns *VersionNamespace) Name() string {
 }
 
 // configVersionFactory return the sub-configuration section if a section has been set.
-func (ns *VersionNamespace) Config() common.ConfigFactory {
+func (ns *VersionNamespace) Config() ConfigFactory {
 	return ns.config
 }
 

@@ -3,6 +3,7 @@ package common
 import (
 	"crypto/md5"
 	"errors"
+	"github.com/elastic/go-ucfg/json"
 	"io/ioutil"
 
 	"github.com/elastic/go-ucfg"
@@ -77,6 +78,17 @@ func NewConfigWithYAML(in []byte, source string) (*Config, error) {
 		configOpts...,
 	)
 	c, err := yaml.NewConfig(in, opts...)
+	return fromConfig(c), err
+}
+
+func NewConfigWithJSON(in []byte, source string) (*Config, error) {
+	opts := append(
+		[]ucfg.Option{
+			ucfg.MetaData(ucfg.Meta{Source: source}),
+		},
+		configOpts...,
+	)
+	c, err := json.NewConfig(in, opts...)
 	return fromConfig(c), err
 }
 

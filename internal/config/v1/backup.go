@@ -7,12 +7,12 @@ import (
 )
 
 type BackupConfig struct {
-	config common.ConfigNamespace `rawConfig:",inline,required"`
+	config common.ConfigNamespace `config:",inline,required"`
 }
 
 type FileBackupConfig struct {
-	Dir          string `rawConfig:"dir,required" json:"dir"`
-	FileTemplate string `rawConfig:"file-template" json:"file-template"`
+	Dir          string `config:"dir,required" json:"dir"`
+	FileTemplate string `config:"file-template" json:"file-template"`
 }
 
 type SqlBackupConfig struct {
