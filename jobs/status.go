@@ -1,11 +1,28 @@
 package jobs
 
-type JobStatus int
+type CompletionStatus int
 
 const (
-	InActiveStatus JobStatus = iota
-	RunningStatus
-	SuccessStatus
-	SkipStatus
-	FaultStatus
+	Inactive CompletionStatus = iota
+	Running
+	Success
+	Skip
+	Error
 )
+
+func (h CompletionStatus) String() string {
+	switch h {
+	case Inactive:
+		return "Inactive"
+	case Running:
+		return "Running"
+	case Success:
+		return "Success"
+	case Skip:
+		return "Skip"
+	case Error:
+		return "Error"
+	default:
+		return "unknown"
+	}
+}

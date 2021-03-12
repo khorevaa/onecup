@@ -1,7 +1,6 @@
 package jobs
 
 import (
-	"log"
 	"sort"
 	"time"
 )
@@ -12,11 +11,12 @@ type Job interface {
 	Fault() bool
 	Skiped() bool
 	Success() bool
-	Status() JobStatus
+	Status() CompletionStatus
 	Error() error
+	Subscribe(subscribe *Subscribe)
 
-	run(input Input) (Output, error)
-	simulate(input Input) (Output, error)
+	run(input Values) (Values, error)
+	simulate(input Values) (Values, error)
 }
 
 type Stats struct {
@@ -29,12 +29,87 @@ type Stats struct {
 
 type job struct {
 	name    string
-	steps   []Step
+	tasks   []task
 	startAt time.Time
 	endAt   time.Time
 	skip    bool
 	err     error
-	status  JobStatus
+	status  CompletionStatus
+
+	outputs     map[string]string
+	inputs      map[string]string
+	subscribers []*Subscribe
+}
+
+func (j *job) EmitEvent(task string, step string, event string) {
+	j.emmitEvent(Event{
+		Type:  AllEvents,
+		Job:   j.name,
+		Task:  task,
+		Step:  step,
+		Event: event,
+	})
+}
+
+func (j *job) EmitEventErr(task string, step string, event string, err error) error {
+	j.emmitEvent(Event{
+		Type:  ErrorEvents,
+		Job:   j.name,
+		Task:  task,
+		Step:  step,
+		Event: event,
+		Err:   err,
+	})
+
+	return err
+}
+
+func (j *job) EmitTiming(task string, step string, event string, nanoseconds int64) {
+	j.emmitEvent(Event{
+		Type:   TimingEvents,
+		Job:    j.name,
+		Task:   task,
+		Step:   step,
+		Event:  event,
+		Timing: nanoseconds,
+	})
+}
+
+func (j *job) EmitComplete(task string, step string, status CompletionStatus, nanoseconds int64) {
+	j.emmitEvent(Event{
+		Type:   CompletionEvents,
+		Job:    j.name,
+		Task:   task,
+		Step:   step,
+		Status: status,
+		Timing: nanoseconds,
+	})
+}
+func (j *job) EmitCompleteErr(task string, step string, err error, nanoseconds int64) error {
+	j.emmitEvent(Event{
+		Type:   CompletionEvents,
+		Job:    j.name,
+		Task:   task,
+		Step:   step,
+		Err:    err,
+		Status: Error,
+		Timing: nanoseconds,
+	})
+
+	return err
+}
+
+func (j *job) emmitEvent(event Event) {
+
+	for _, subscriber := range j.subscribers {
+		subscriber.emmitEvent(event)
+	}
+}
+
+func (j *job) Subscribe(subscribe *Subscribe) {
+
+	j.subscribers = append(j.subscribers, subscribe)
+
 }
 
 func (j *job) Stats() Stats {
@@ -42,7 +117,7 @@ func (j *job) Stats() Stats {
 	return Stats{
 		StartAt:    j.startAt,
 		EndAt:      j.endAt,
-		StepsCount: len(j.steps),
+		StepsCount: len(j.tasks),
 		StepsSkip:  0,
 		StepsRun:   0,
 	}
@@ -57,10 +132,10 @@ func (j *job) Skiped() bool {
 }
 
 func (j *job) Success() bool {
-	return j.status == SuccessStatus
+	return j.status == Success
 }
 
-func (j *job) Status() JobStatus {
+func (j *job) Status() CompletionStatus {
 	return j.status
 }
 
@@ -68,61 +143,86 @@ func (j *job) Error() error {
 	return j.err
 }
 
-func (j *job) run(input Input) (Output, error) {
+func (j *job) run(input Values) (Values, error) {
 
-	ctx := &Context{
-		job:     j,
-		params:  input,
-		outputs: make(Output),
+	values := getValues(input, j.inputs)
+
+	ctx := &jobContext{
+		job:    j,
+		values: values,
 	}
 
-	for _, step := range j.steps {
-		step.Run(ctx)
+	j.runTasks(ctx)
+
+	output := getValues(ctx.values, j.outputs)
+
+	return output, nil
+}
+func (j *job) runTasks(ctx *jobContext) {
+
+	j.sortTasks()
+
+	for _, t := range j.tasks {
+		out, err := t.run(ctx, ctx.values)
+		if err != nil {
+			ctx.err = err
+		}
+		ctx.StoreValues(out)
 	}
 
-	ctx.currentStep = nil
-
-	return ctx.outputs, nil
 }
 
-func (j *job) simulate(input Input) (Output, error) {
+func getValues(values Values, keyMap map[string]string) Values {
 
-	log.Print("Simulate running job: " + j.name)
-	ctx := &Context{
-		job:     j,
-		params:  input,
-		outputs: make(Output),
+	val := make(Values)
+
+	for k1, k2 := range keyMap {
+		val[k1] = values[k2]
 	}
 
-	for _, step := range j.steps {
-		log.Print("Simulate running step: " + step.Name)
-		step.Run(ctx)
+	return val
+}
+
+func (j *job) simulate(input Values) (Values, error) {
+
+	values := getValues(input, j.inputs)
+
+	ctx := &jobContext{
+		job:      j,
+		values:   values,
+		simulate: true,
 	}
 
-	log.Print("Simulate finished job: " + j.name)
+	j.runTasks(ctx)
 
-	ctx.currentStep = nil
-	j.err = ctx.err
-	if ctx.Fault() {
-		j.status = FaultStatus
-		return nil, j.Error()
-	}
+	output := getValues(ctx.values, j.outputs)
 
-	return ctx.outputs, nil
+	return output, ctx.Err()
+
 }
 
 func (j *job) Name() string {
 	return j.name
 }
 
-func (j *job) sortSteps() {
+func (j *job) sortTasks() {
 
-	sort.Slice(j.steps, func(i, k int) bool {
-		return j.steps[i].On > j.steps[k].On
+	sort.Slice(j.tasks, func(i, k int) bool {
+		return j.tasks[i].handler < j.tasks[k].handler
 	})
 
 }
 
 type Params map[string]interface{}
-type Input map[string]interface{}
-type Output map[string]interface{}
+type Inputs map[string]string
+type Values map[string]interface{}
+
+func copyValues(dest, src Values) {
+	if src == nil {
+		return
+	}
+
+	for key, value := range src {
+		dest[key] = value
+	}
+}

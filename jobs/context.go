@@ -1,78 +1,112 @@
 package jobs
 
-import v8 "github.com/v8platform/api"
+import "fmt"
 
-type Context struct {
-	job         *job
-	currentStep *Step
-	params      Input
-	outputs     Output
-	err         error
+func newCtx(parent Context) *jobContext {
+	return &jobContext{
+		job:      parent.Job(),
+		values:   make(Values),
+		parent:   parent,
+		simulate: parent.Simulate(),
+	}
 }
 
-func (c *Context) Job() *job {
+type Context interface {
+	LoadValue(name string) (interface{}, bool)
+	MustLoadValue(name string) interface{}
+
+	StoreValue(name string, value interface{})
+	OutputValue(name string, value interface{})
+
+	StoreValues(values Values)
+	OutputValues(values Values)
+
+	Job() Job
+	Err() error
+	Fault() bool
+
+	Simulate() bool
+}
+
+type jobContext struct {
+	job     Job
+	values  Values
+	outputs Values
+	err     error
+	parent  Context
+
+	simulate bool
+}
+
+func (c *jobContext) Simulate() bool {
+	return c.simulate
+}
+
+func (c *jobContext) Job() Job {
+
 	return c.job
 }
 
-func (c *Context) Step() *Step {
-	return c.currentStep
-}
+func (c *jobContext) LoadValue(name string) (interface{}, bool) {
 
-func (c *Context) Error() error {
-	return c.err
-}
+	value, ok := c.values[name]
 
-func (c *Context) Fault() bool {
-	return c.err != nil
-}
-
-func (c *Context) Out(name string, value interface{}) {
-
-	if c.outputs == nil {
-		c.outputs = make(map[string]interface{})
+	if c.parent != nil && !ok {
+		return c.parent.LoadValue(name)
 	}
+
+	return value, ok
+}
+func (c *jobContext) MustLoadValue(name string) interface{} {
+
+	value, ok := c.values[name]
+
+	if c.parent != nil && !ok {
+		return c.parent.MustLoadValue(name)
+	}
+
+	if !ok {
+		panic(fmt.Sprintf("context: must have value for key <%s>", name))
+	}
+
+	return value
+}
+
+func (c *jobContext) StoreValue(name string, value interface{}) {
+	c.values[name] = value
+}
+
+func (c *jobContext) StoreValues(values Values) {
+	for name, value := range values {
+		c.StoreValue(name, value)
+	}
+}
+
+func (c *jobContext) OutputValue(name string, value interface{}) {
 	c.outputs[name] = value
-
-	if c.params == nil {
-		c.params = make(map[string]interface{})
-	}
-	c.params[name] = value
 }
 
-func (c *Context) Param(name string) (interface{}, bool) {
-
-	if c.currentStep == nil {
-		return nil, false
+func (c *jobContext) OutputValues(values Values) {
+	for name, value := range values {
+		c.OutputValue(name, value)
 	}
-
-	value, ok := c.currentStep.params[name]
-	return value, ok
 }
 
-func (c *Context) Infobase() *v8.Infobase {
+func (c *jobContext) Err() error {
 
-	if ib, ok := c.Value("infobase"); ok {
-		return ib.(*v8.Infobase)
+	if c.err != nil {
+		return c.err
 	}
-	return nil
 
+	var err error
+
+	if c.parent != nil {
+		err = c.parent.Err()
+	}
+
+	return err
 }
 
-func (c *Context) Options() []interface{} {
-
-	if val, ok := c.Value("options"); ok {
-		return val.([]interface{})
-	}
-	return nil
-
-}
-
-func (c *Context) Value(name string) (interface{}, bool) {
-
-	if c.params == nil {
-		return nil, false
-	}
-	value, ok := c.params[name]
-	return value, ok
-
+func (c *jobContext) Fault() bool {
+	return c.Err() != nil
 }

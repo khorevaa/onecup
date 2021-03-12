@@ -1,50 +1,83 @@
 package jobs
 
-type Action func(ctx *Context) error
+import (
+	"errors"
+)
 
-type StepType int
+type Action func(ctx Context) error
+
+type HandlerType int
 
 const (
-	BeforeType StepType = iota
+	BeforeType HandlerType = iota
 	DefaultType
 	AfterType
 	ErrorType
 	AlwaysType
 )
 
-type Step struct {
-	Name   string
-	On     StepType
-	Action Action
-
-	params Params
-
-	Skipped        bool
-	SkippedMessage string
+func (h HandlerType) String() string {
+	switch h {
+	case BeforeType:
+		return "Before"
+	case DefaultType:
+		return "Default"
+	case AfterType:
+		return "After"
+	case ErrorType:
+		return "Error"
+	case AlwaysType:
+		return "Always"
+	default:
+		return "unknown handler type"
+	}
 }
 
-func (s *Step) Run(ctx *Context) {
+type TaskStep struct {
+	name    string
+	handler HandlerType
+	fn      Action
+	status  CompletionStatus
+}
 
-	ctx.currentStep = s
+func (s *TaskStep) Name() string {
+	return s.name
+}
 
-	if ctx.Fault() && !(s.On == ErrorType || s.On == AlwaysType) {
-		s.Skip()
-		return
+func (s *TaskStep) run(ctx *jobContext) (err error) {
+
+	defer func() {
+		if rec := recover(); rec != nil {
+			switch t := rec.(type) {
+			case error:
+				err = t
+			case string:
+				err = errors.New(t)
+			default:
+				panic(rec)
+			}
+		}
+	}()
+
+	if s.needSkip(ctx) {
+		return nil
 	}
 
-	err := s.Action(ctx)
+	err = s.fn(ctx)
+
 	if err != nil {
 		ctx.err = err
+		return err
 	}
+
+	return nil
 }
 
-func (s *Step) Skip() {
-	s.Skipped = true
-}
+func (s *TaskStep) needSkip(ctx Context) bool {
+	if ctx.Fault() && !(s.handler == ErrorType || s.handler == AlwaysType) {
+		s.status = Skip
+		return true
+	}
 
-func (s *Step) SkipMsg(msg string) {
-
-	s.SkippedMessage = msg
-	s.Skipped = true
-
+	return false
 }

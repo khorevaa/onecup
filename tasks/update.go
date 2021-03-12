@@ -7,6 +7,8 @@ import (
 	"os"
 )
 
+var _ jobs.Task = (*Update)(nil)
+
 type Update struct {
 	File             string
 	LoadConfig       bool `json:"load-config"`
@@ -15,12 +17,28 @@ type Update struct {
 	WarningsAsErrors bool `json:"warnings-as-errors"`
 }
 
-func (j *Update) Action(ctx *jobs.Context) error {
+func (j *Update) Steps() []jobs.Step {
+	panic("implement me")
+}
+
+func (j *Update) Inputs() jobs.Inputs {
+	return map[string]string{
+		"file": "release-file",
+	}
+}
+
+func (j *Update) Outputs() jobs.Inputs {
+	return map[string]string{}
+}
+
+func (j *Update) Handler() jobs.HandlerType {
+	return jobs.DefaultType
+}
+
+func (j *Update) Action(ctx jobs.Context) error {
 
 	if len(j.File) == 0 {
-		if val, ok := ctx.Value("release-file"); ok {
-			j.File = val.(string)
-		}
+		j.File = ctx.MustLoadValue("file").(string)
 	}
 
 	_, err := os.Stat(j.File)
@@ -43,10 +61,6 @@ func (j *Update) Action(ctx *jobs.Context) error {
 	}
 
 	return v8.Run(ctx.Infobase(), command, ctx.Options()...)
-}
-
-func (j *Update) Params() jobs.Params {
-	return map[string]interface{}{}
 }
 
 func (j *Update) Name() string {

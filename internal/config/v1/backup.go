@@ -31,7 +31,7 @@ func (c *BackupConfig) Unpack() (job jobs.Job, err error) {
 
 		b := jobs.NewJob("Backup (file)")
 
-		b.Task(&tasks.DumpInfobase{
+		b.NewTask(&tasks.DumpInfobase{
 			FileTemplate: fileConfig.FileTemplate,
 			Dir:          fileConfig.Dir,
 		})

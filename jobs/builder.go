@@ -1,138 +1,209 @@
 package jobs
 
-type JobBuilder struct {
-	name    string
-	onError []Step
-	after   []Step
-	steps   []Step
-	before  []Step
-	always  []Step
-}
-
-func NewJob(name string) *JobBuilder {
-	return &JobBuilder{
-		name: name,
-	}
-}
-
-func (b *JobBuilder) addStep(s Step, in *[]Step) {
-
-	*in = append(*in, s)
-
-}
-
-func (b *JobBuilder) Step(name string, action Action, params ...Params) *JobBuilder {
-
-	step := Step{
-		Name:   name,
-		On:     DefaultType,
-		Action: action,
-	}
-
-	if len(params) > 0 {
-		step.params = params[0]
-	}
-
-	b.addStep(step, &b.steps)
-
-	return b
-}
-
 type Task interface {
 	Name() string
-	Action(ctx *Context) error
-	Params() Params
+	Steps() []Step
+	Inputs() Inputs
+	Outputs() Inputs
+	Handler() HandlerType
 }
 
-func (b *JobBuilder) Task(t Task) *JobBuilder {
+type Step interface {
+	Name() string
+	Action(ctx Context) error
+	Handler() HandlerType
+}
 
-	step := Step{
-		Name:   t.Name(),
-		On:     DefaultType,
-		Action: t.Action,
-		params: t.Params(),
+type TaskBuilder struct {
+	name            string
+	handler         HandlerType
+	inputs, outputs Inputs
+
+	steps []TaskStep
+}
+
+type JobBuilder struct {
+	name            string
+	tasks           []TaskBuilder
+	inputs, outputs Inputs
+}
+
+func NewJob(name string, inputsOutputs ...Inputs) *JobBuilder {
+	var inputs, outputs Inputs
+
+	if len(inputsOutputs) == 1 {
+		inputs = inputsOutputs[0]
 	}
-	b.addStep(step, &b.steps)
+	if len(inputsOutputs) == 2 {
+		outputs = inputsOutputs[1]
+	}
+
+	return &JobBuilder{
+		name:    name,
+		inputs:  inputs,
+		outputs: outputs,
+		tasks:   []TaskBuilder{},
+	}
+}
+
+func NewTask(name string, inputsOutputs ...Inputs) *TaskBuilder {
+	var inputs, outputs Inputs
+
+	if len(inputsOutputs) == 1 {
+		inputs = inputsOutputs[0]
+	}
+	if len(inputsOutputs) == 2 {
+		outputs = inputsOutputs[1]
+	}
+
+	return &TaskBuilder{
+		name:    name,
+		inputs:  inputs,
+		outputs: outputs,
+		steps:   []TaskStep{},
+	}
+}
+
+func (b *JobBuilder) Task(task TaskBuilder) *JobBuilder {
+
+	b.tasks = append(b.tasks, task)
 
 	return b
 }
 
-func (b *JobBuilder) OnError(name string, action Action, params ...Params) *JobBuilder {
+func (b *JobBuilder) NewTask(name string, handler HandlerType, inputs, outputs Inputs, steps ...Step) *JobBuilder {
 
-	step := Step{
-		Name:   name,
-		On:     ErrorType,
-		Action: action,
+	t := TaskBuilder{
+		name:    name,
+		handler: handler,
+		inputs:  inputs,
+		outputs: outputs,
 	}
 
-	if len(params) > 0 {
-		step.params = params[0]
-	}
+	t.Steps(steps...)
 
-	b.addStep(step, &b.onError)
+	b.tasks = append(b.tasks, t)
+
 	return b
 }
 
-func (b *JobBuilder) After(name string, action Action, params ...Params) *JobBuilder {
+func (b *JobBuilder) NewTasks(tasks ...Task) *JobBuilder {
 
-	step := Step{
-		Name:   name,
-		On:     AfterType,
-		Action: action,
+	for _, task := range tasks {
+
+		b.NewTask(task.Name(), task.Handler(), task.Inputs(), task.Outputs(), task.Steps()...)
 	}
 
-	if len(params) > 0 {
-		step.params = params[0]
-	}
-
-	b.addStep(step, &b.after)
-	return b
-}
-
-func (b *JobBuilder) Before(name string, action Action, params ...Params) *JobBuilder {
-
-	step := Step{
-		Name:   name,
-		On:     BeforeType,
-		Action: action,
-	}
-
-	if len(params) > 0 {
-		step.params = params[0]
-	}
-
-	b.addStep(step, &b.before)
-	return b
-}
-
-func (b *JobBuilder) Always(name string, action Action, params ...Params) *JobBuilder {
-
-	step := Step{
-		Name:   name,
-		On:     AlwaysType,
-		Action: action,
-	}
-
-	if len(params) > 0 {
-		step.params = params[0]
-	}
-
-	b.addStep(step, &b.always)
 	return b
 }
 
 func (b *JobBuilder) Build() Job {
 
-	j := &job{
-		name:  b.name,
-		steps: []Step{},
+	t := &job{
+		name:    b.name,
+		inputs:  b.inputs,
+		outputs: b.outputs,
 	}
 
-	j.steps = append(j.steps, b.before...)
-	j.steps = append(j.steps, b.steps...)
-	j.steps = append(j.steps, b.after...)
-	j.steps = append(j.steps, b.onError...)
-	j.steps = append(j.steps, b.always...)
+	for _, builder := range b.tasks {
+		t.tasks = append(t.tasks, builder.build(t))
+	}
 
-	return j
+	return t
+}
+
+func (b *TaskBuilder) addStep(s TaskStep) {
+
+	b.steps = append(b.steps, s)
+
+}
+
+func (b *TaskBuilder) Step(name string, action Action) *TaskBuilder {
+
+	step := TaskStep{
+		name:    name,
+		handler: DefaultType,
+		fn:      action,
+	}
+
+	b.addStep(step)
+
+	return b
+}
+
+func (b *TaskBuilder) Steps(steps ...Step) *TaskBuilder {
+
+	for _, step := range steps {
+
+		step := TaskStep{
+			name:    step.Name(),
+			handler: step.Handler(),
+			fn:      step.Action,
+		}
+
+		b.addStep(step)
+	}
+
+	return b
+}
+
+func (b *TaskBuilder) OnError(name string, action Action) *TaskBuilder {
+
+	step := TaskStep{
+		name:    name,
+		handler: ErrorType,
+		fn:      action,
+	}
+
+	b.addStep(step)
+	return b
+}
+
+func (b *TaskBuilder) After(name string, action Action) *TaskBuilder {
+
+	step := TaskStep{
+		name:    name,
+		handler: AfterType,
+		fn:      action,
+	}
+
+	b.addStep(step)
+	return b
+}
+
+func (b *TaskBuilder) Before(name string, action Action) *TaskBuilder {
+
+	step := TaskStep{
+		name:    name,
+		handler: BeforeType,
+		fn:      action,
+	}
+
+	b.addStep(step)
+	return b
+}
+
+func (b *TaskBuilder) Always(name string, action Action) *TaskBuilder {
+	step := TaskStep{
+		name:    name,
+		handler: AlwaysType,
+		fn:      action,
+	}
+
+	b.addStep(step)
+	return b
+}
+
+func (b *TaskBuilder) build(j *job) task {
+
+	t := task{
+		job:     j,
+		name:    b.name,
+		steps:   b.steps,
+		handler: b.handler,
+		inputs:  b.inputs,
+		outputs: b.outputs,
+	}
+
+	return t
 }

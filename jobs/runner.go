@@ -5,13 +5,13 @@ type Runner struct {
 	jobs   []Job
 }
 
-func (r *Runner) Run(params Params) error {
+func (r *Runner) Run(params Values) error {
 
 	globalInput := params
 
 	for _, j := range r.jobs {
 
-		output, err := j.run(Input(globalInput))
+		output, err := j.run(globalInput)
 
 		if err != nil {
 			return err
@@ -28,17 +28,20 @@ func (r *Runner) Run(params Params) error {
 }
 
 type SimulateRunner struct {
-	params Params
+	params Values
 	jobs   []Job
 }
 
-func (r *SimulateRunner) Run(params Params) error {
+func (r *SimulateRunner) Run(params Values) error {
 
 	globalInput := params
+	simulateSub := NewSubscriber(AllEvents)
 
 	for _, j := range r.jobs {
 
-		output, err := j.simulate(Input(globalInput))
+		j.Subscribe(simulateSub)
+
+		output, err := j.simulate(globalInput)
 
 		if err != nil {
 			return err

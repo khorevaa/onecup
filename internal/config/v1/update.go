@@ -25,14 +25,14 @@ type FileReleaseConfig struct {
 
 func (c *UpdateConfig) Job() (jobs.Job, error) {
 
-	releaseTask, err := c.releaseJob()
+	releaseTask, err := c.releaseStep()
 	if err != nil {
 		return nil, err
 	}
 
-	job := jobs.NewJob("update").
-		Task(releaseTask).
-		Task(&tasks.Update{
+	task := jobs.NewTask("update").Steps(
+		releaseTask,
+		&tasks.Update{
 			LoadConfig:       c.LoadConfig,
 			Server:           c.Server,
 			Dynamic:          c.Dynamic,
@@ -40,7 +40,7 @@ func (c *UpdateConfig) Job() (jobs.Job, error) {
 		})
 
 	if c.RollbackOnError {
-		job.OnError("Rollback config", func(ctx *jobs.Context) error {
+		task.OnError("Rollback config", func(ctx jobs.Context) error {
 			// TODO Проверка необходимости делать возврат
 			return v8.Run(ctx.Infobase(), v8.RollbackCfg(), ctx.Options()...)
 		})
@@ -49,7 +49,7 @@ func (c *UpdateConfig) Job() (jobs.Job, error) {
 	return job.Build(), nil
 }
 
-func (c *UpdateConfig) releaseJob() (jobs.Task, error) {
+func (c *UpdateConfig) releaseStep() (jobs.Step, error) {
 
 	switch c.Release.Name() {
 
@@ -60,7 +60,7 @@ func (c *UpdateConfig) releaseJob() (jobs.Task, error) {
 			return nil, err
 		}
 
-		return &tasks.FileReleaseJob{
+		return &tasks.FileReleaseStep{
 			File: fileConfig.File,
 			Hash: fileConfig.Hash,
 		}, nil

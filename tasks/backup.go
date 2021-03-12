@@ -24,11 +24,11 @@ func (c *DumpInfobase) Params() jobs.Params {
 	}
 }
 
-func (c *DumpInfobase) Action(ctx *jobs.Context) error {
+func (c *DumpInfobase) Action(ctx jobs.Context) error {
 
 	backupFileName := filepath.Join(c.Dir, c.FileTemplate)
 	err := v8.Run(ctx.Infobase(), v8.DumpIB(backupFileName), ctx.Options()...)
-	ctx.Out("backup-file", backupFileName)
+	ctx.StoreValue("backup-file", backupFileName)
 
 	return err
 }
