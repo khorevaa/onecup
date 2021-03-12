@@ -7,7 +7,7 @@ import (
 	"os"
 )
 
-var _ jobs.Task = (*Update)(nil)
+var _ jobs.Step = (*Update)(nil)
 
 type Update struct {
 	File             string
@@ -15,20 +15,6 @@ type Update struct {
 	Server           bool `json:"on-server"`
 	Dynamic          bool `json:"dynamic"`
 	WarningsAsErrors bool `json:"warnings-as-errors"`
-}
-
-func (j *Update) Steps() []jobs.Step {
-	panic("implement me")
-}
-
-func (j *Update) Inputs() jobs.Inputs {
-	return map[string]string{
-		"file": "release-file",
-	}
-}
-
-func (j *Update) Outputs() jobs.Inputs {
-	return map[string]string{}
 }
 
 func (j *Update) Handler() jobs.HandlerType {
@@ -40,7 +26,6 @@ func (j *Update) Action(ctx jobs.Context) error {
 	if len(j.File) == 0 {
 		j.File = ctx.MustLoadValue("file").(string)
 	}
-
 	_, err := os.Stat(j.File)
 	if err != nil {
 		return err
@@ -59,8 +44,10 @@ func (j *Update) Action(ctx jobs.Context) error {
 	} else {
 		command = v8.UpdateCfg(j.File, false, updateDBConfig)
 	}
+	ib := jobs.InfobaseFromCtx(ctx)
+	opts := jobs.OptionsFromCtx(ctx)
 
-	return v8.Run(ctx.Infobase(), command, ctx.Options()...)
+	return v8.Run(ib, command, opts...)
 }
 
 func (j *Update) Name() string {
@@ -68,6 +55,28 @@ func (j *Update) Name() string {
 	if j.LoadConfig {
 		name = "load configuration"
 	}
+	return name
+}
 
+var _ jobs.Step = (*Update)(nil)
+
+type RollbackUpdate struct {
+	HandlerType jobs.HandlerType
+}
+
+func (j *RollbackUpdate) Handler() jobs.HandlerType {
+	return j.HandlerType
+}
+
+func (j *RollbackUpdate) Action(ctx jobs.Context) error {
+
+	ib := jobs.InfobaseFromCtx(ctx)
+	opts := jobs.OptionsFromCtx(ctx)
+
+	return v8.Run(ib, v8.RollbackCfg(), opts...)
+}
+
+func (j *RollbackUpdate) Name() string {
+	name := "Rollback configuration"
 	return name
 }

@@ -5,7 +5,6 @@ import (
 	"github.com/khorevaa/onecup/internal/common"
 	"github.com/khorevaa/onecup/jobs"
 	"github.com/khorevaa/onecup/tasks"
-	v8 "github.com/v8platform/api"
 )
 
 type UpdateConfig struct {
@@ -23,15 +22,15 @@ type FileReleaseConfig struct {
 	Hash string `config:"hash" json:"hash"`
 }
 
-func (c *UpdateConfig) Job() (jobs.Job, error) {
+func (c *UpdateConfig) Task() (*jobs.TaskBuilder, error) {
 
-	releaseTask, err := c.releaseStep()
+	releaseStep, err := c.releaseStep()
 	if err != nil {
 		return nil, err
 	}
 
 	task := jobs.NewTask("update").Steps(
-		releaseTask,
+		releaseStep,
 		&tasks.Update{
 			LoadConfig:       c.LoadConfig,
 			Server:           c.Server,
@@ -40,13 +39,12 @@ func (c *UpdateConfig) Job() (jobs.Job, error) {
 		})
 
 	if c.RollbackOnError {
-		task.OnError("Rollback config", func(ctx jobs.Context) error {
-			// TODO Проверка необходимости делать возврат
-			return v8.Run(ctx.Infobase(), v8.RollbackCfg(), ctx.Options()...)
+		task.Steps(&tasks.RollbackUpdate{
+			HandlerType: jobs.ErrorType,
 		})
 	}
 
-	return job.Build(), nil
+	return task, nil
 }
 
 func (c *UpdateConfig) releaseStep() (jobs.Step, error) {

@@ -12,23 +12,22 @@ type DumpInfobase struct {
 	Dir          string
 }
 
+func (c *DumpInfobase) Handler() jobs.HandlerType {
+	return jobs.DefaultType
+}
+
 func (c *DumpInfobase) Name() string {
 	return "Dump infobase data"
 }
 
-func (c *DumpInfobase) Params() jobs.Params {
-
-	return map[string]interface{}{
-		"file-template": c.FileTemplate,
-		"dir":           c.Dir,
-	}
-}
-
 func (c *DumpInfobase) Action(ctx jobs.Context) error {
 
+	ib := jobs.InfobaseFromCtx(ctx)
+	opts := jobs.OptionsFromCtx(ctx)
+
 	backupFileName := filepath.Join(c.Dir, c.FileTemplate)
-	err := v8.Run(ctx.Infobase(), v8.DumpIB(backupFileName), ctx.Options()...)
-	ctx.StoreValue("backup-file", backupFileName)
+	err := v8.Run(ib, v8.DumpIB(backupFileName), opts...)
+	ctx.StoreValue("backup", backupFileName)
 
 	return err
 }
@@ -37,12 +36,18 @@ type RestoreInfobase struct {
 	File string
 }
 
-func (j *RestoreInfobase) Action(ctx *jobs.Context) error {
+func (c *RestoreInfobase) Handler() jobs.HandlerType {
+	return jobs.DefaultType
+}
+
+func (c *RestoreInfobase) Name() string {
+	return "Restore infobase data"
+}
+
+func (j *RestoreInfobase) Action(ctx jobs.Context) error {
 
 	if len(j.File) == 0 {
-		if val, ok := ctx.Value("backup-file"); ok {
-			j.File = val.(string)
-		}
+		j.File = ctx.MustLoadValue("file").(string)
 	}
 
 	_, err := os.Stat(j.File)
@@ -50,7 +55,10 @@ func (j *RestoreInfobase) Action(ctx *jobs.Context) error {
 		return err
 	}
 
-	err = v8.Run(ctx.Infobase(), v8.RestoreIB(j.File), ctx.Options()...)
+	ib := jobs.InfobaseFromCtx(ctx)
+	opts := jobs.OptionsFromCtx(ctx)
+
+	err = v8.Run(ib, v8.RestoreIB(j.File), opts...)
 
 	return err
 

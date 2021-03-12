@@ -27,95 +27,97 @@ func (v Config) Build(builder common.Builder) error {
 		return err
 	}
 
-	jobList := &jobs.List{}
+	job := jobs.NewJob(v.Uuid, jobs.Inputs{
+		"infobase": "infobase",
+		"options":  "options",
+	})
 
-	if err := v.addBlockSessionJob(jobList); err != nil {
+	if err := v.addBlockSessionJob(job); err != nil {
 		return err
 	}
-	if err := v.addBackupJob(jobList); err != nil {
+	if err := v.addBackupJob(job); err != nil {
 		return err
 	}
-	if err := v.addUpdateJob(jobList); err != nil {
+	if err := v.addUpdateJob(job); err != nil {
 		return err
 	}
-	if err := v.addExtensionJob(jobList); err != nil {
+	if err := v.addExtensionJob(job); err != nil {
 		return err
 	}
-	if err := v.addEnterpriseJob(jobList); err != nil {
+	if err := v.addEnterpriseJob(job); err != nil {
 		return err
 	}
-	if err := v.addRestoreJob(jobList); err != nil {
+	if err := v.addRestoreJob(job); err != nil {
 		return err
 	}
-	if err := v.addUnblockSessionJob(jobList); err != nil {
+	if err := v.addUnblockSessionJob(job); err != nil {
 		return err
 	}
 
-	return builder.Build(v.Name, infobase, *jobList)
+	return builder.Build(v.Name, infobase, job.Build())
 }
 
-func (v Config) addUpdateJob(list *jobs.List) error {
+func (v Config) addUpdateJob(job *jobs.JobBuilder) error {
 
 	if v.Update == nil {
 		return nil
 	}
 
-	job, err := v.Update.Job()
+	task, err := v.Update.Task()
+
 	if err != nil {
 		return err
 	}
 
-	list.Add(job)
+	job.Task(task)
 
 	return nil
 
 }
 
-func (v Config) addBackupJob(list *jobs.List) error {
+func (v Config) addBackupJob(job *jobs.JobBuilder) error {
 
 	if v.Backup == nil {
 		return nil
 	}
-
-	job, err := v.Backup.Unpack()
+	task, err := v.Backup.Task()
 	if err != nil {
 		return err
 	}
 
-	list.Add(job)
-
+	job.Task(task)
 	return nil
 }
 
-func (v Config) addBlockSessionJob(list *jobs.List) error {
+func (v Config) addBlockSessionJob(job *jobs.JobBuilder) error {
 	if v.Sessions == nil {
 		return nil
 	}
 	return nil
 }
 
-func (v Config) addExtensionJob(list *jobs.List) error {
+func (v Config) addExtensionJob(job *jobs.JobBuilder) error {
 	if v.Extension == nil {
 		return nil
 	}
 	return nil
 }
 
-func (v Config) addEnterpriseJob(list *jobs.List) error {
+func (v Config) addEnterpriseJob(job *jobs.JobBuilder) error {
 	if v.Enterprise == nil {
 		return nil
 	}
 	return nil
 }
 
-func (v Config) addUnblockSessionJob(list *jobs.List) error {
+func (v Config) addUnblockSessionJob(job *jobs.JobBuilder) error {
 	if v.Sessions == nil {
 		return nil
 	}
 	return nil
 }
 
-func (v Config) addRestoreJob(list *jobs.List) error {
+func (v Config) addRestoreJob(job *jobs.JobBuilder) error {
 	if v.Backup == nil {
 		return nil
 	}

@@ -64,9 +64,27 @@ func NewTask(name string, inputsOutputs ...Inputs) *TaskBuilder {
 	}
 }
 
-func (b *JobBuilder) Task(task TaskBuilder) *JobBuilder {
+func NewGroupTask(name string, inputsOutputs ...Inputs) *TaskBuilder {
+	var inputs, outputs Inputs
 
-	b.tasks = append(b.tasks, task)
+	if len(inputsOutputs) == 1 {
+		inputs = inputsOutputs[0]
+	}
+	if len(inputsOutputs) == 2 {
+		outputs = inputsOutputs[1]
+	}
+
+	return &TaskBuilder{
+		name:    name,
+		inputs:  inputs,
+		outputs: outputs,
+		steps:   []TaskStep{},
+	}
+}
+
+func (b *JobBuilder) Task(task *TaskBuilder) *JobBuilder {
+
+	b.tasks = append(b.tasks, *task)
 
 	return b
 }

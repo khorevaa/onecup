@@ -6,7 +6,7 @@ import (
 )
 
 type Builder interface {
-	Build(name string, ib *v8.Infobase, list jobs.List) error
+	Build(name string, ib *v8.Infobase, job jobs.Job) error
 }
 
 type ConfigFactory interface {
