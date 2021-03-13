@@ -1,58 +1,30 @@
 package jobs
 
-func Group(name string, job ...TaskBuilder) Job {
-	return &groupJob{
-		name: name,
-		jobs: job,
+func NewGroup(job2 *job, name string, steps Steps, inputsOutputs ...Inputs) Task {
+
+	var inputs, outputs Inputs
+
+	if len(inputsOutputs) == 1 {
+		inputs = inputsOutputs[0]
 	}
+	if len(inputsOutputs) == 2 {
+		outputs = inputsOutputs[1]
+	}
+
+	return &groupTask{
+		task{
+			job:     job2,
+			name:    name,
+			inputs:  inputs,
+			outputs: outputs,
+			steps:   steps,
+		},
+	}
+
 }
 
-type groupJob struct {
-	name string
-	jobs []TaskBuilder
-}
+var _ Task = (*groupTask)(nil)
 
-func (g *groupJob) Subscribe(subscribe *Subscribe) {
-	panic("implement me")
-}
-
-func (g *groupJob) simulate(input Values) (Values, error) {
-	panic("implement me")
-}
-
-func (g *groupJob) Stats() Stats {
-	panic("implement me")
-}
-
-func (g *groupJob) Fault() bool {
-	panic("implement me")
-}
-
-func (g *groupJob) Skiped() bool {
-	panic("implement me")
-}
-
-func (g *groupJob) Success() bool {
-	panic("implement me")
-}
-
-func (g *groupJob) Status() CompletionStatus {
-	panic("implement me")
-}
-
-func (g *groupJob) Error() error {
-	panic("implement me")
-}
-
-func (g *groupJob) Name() string {
-	return g.name
-}
-
-func (g *groupJob) run(input Values) (Values, error) {
-
-	//tasks := g.getSteps()
-	//
-	//return tasks
-
-	return map[string]interface{}{}, nil
+type groupTask struct {
+	task
 }

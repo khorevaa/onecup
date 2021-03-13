@@ -1,7 +1,7 @@
 package jobs
 
 import (
-	"sort"
+	"context"
 	"time"
 )
 
@@ -9,19 +9,19 @@ type Job interface {
 	Name() string
 	Stats() Stats
 	Fault() bool
-	Skiped() bool
 	Success() bool
 	Status() CompletionStatus
-	Error() error
 	Subscribe(subscribe *Subscribe)
 
-	run(input Values) (Values, error)
-	simulate(input Values) (Values, error)
+	Run(ctx context.Context, input Values) (Values, error)
 }
 
 type Stats struct {
 	StartAt    time.Time
 	EndAt      time.Time
+	TasksCount int
+	TasksSkip  int
+	TasksRun   int
 	StepsCount int
 	StepsSkip  int
 	StepsRun   int
@@ -29,16 +29,90 @@ type Stats struct {
 
 type job struct {
 	name    string
-	tasks   []task
+	tasks   Steps
 	startAt time.Time
 	endAt   time.Time
-	skip    bool
-	err     error
-	status  CompletionStatus
+
+	ranTasks int
+
+	status CompletionStatus
 
 	outputs     map[string]string
 	inputs      map[string]string
 	subscribers []*Subscribe
+}
+
+type Steps struct {
+	Before []Task
+	Steps  []Task
+	After  []Task
+	Error  []Task
+	Always []Task
+
+	err error
+}
+
+type RunStep func(step Task) error
+
+func (s Steps) Len() int {
+
+	return len(s.Before) +
+		len(s.Steps) +
+		len(s.After) +
+		len(s.Error) +
+		len(s.Always)
+}
+
+func (s Steps) Do(fn RunStep) (int, error) {
+	var total, n int
+	n, s.err = s.doSteps(fn, s.Before)
+	total += n
+	n, s.err = s.doSteps(fn, s.Steps)
+	total += n
+	n, s.err = s.doSteps(fn, s.After)
+	total += n
+	n, s.err = s.doError(fn, s.Error)
+	total += n
+	n, s.err = EachStep(s.Always).Do(fn)
+	total += n
+
+	return total, s.err
+
+}
+
+func (s Steps) doSteps(fn RunStep, steps []Task) (int, error) {
+
+	if s.err != nil {
+		return 0, s.err
+	}
+
+	return EachStep(steps).Do(fn)
+
+}
+
+func (s Steps) doError(fn RunStep, steps []Task) (int, error) {
+
+	if s.err == nil {
+		return 0, s.err
+	}
+
+	return EachStep(steps).Do(fn)
+
+}
+
+type EachStep []Task
+
+func (list EachStep) Do(fn func(step Task) error) (int, error) {
+	var n int
+	for _, s := range list {
+		n++
+		err := fn(s)
+		if err != nil {
+			return n, err
+		}
+	}
+
+	return n, nil
 }
 
 func (j *job) EmitEvent(task string, step string, event string) {
@@ -114,21 +188,32 @@ func (j *job) Subscribe(subscribe *Subscribe) {
 
 func (j *job) Stats() Stats {
 
+	count := j.tasks.Len()
+
+	var stepsCount, stepsRun, stepsSkip int
+
+	_, _ = j.tasks.Do(func(step Task) error {
+		stat := step.Stats()
+		stepsCount += stat.StepsCount
+		stepsRun += stat.StepsRun
+		stepsSkip += stat.StepsSkip
+		return nil
+	})
+
 	return Stats{
 		StartAt:    j.startAt,
 		EndAt:      j.endAt,
-		StepsCount: len(j.tasks),
-		StepsSkip:  0,
-		StepsRun:   0,
+		TasksCount: count,
+		TasksSkip:  count - j.ranTasks,
+		TasksRun:   j.ranTasks,
+		StepsCount: stepsCount,
+		StepsSkip:  stepsSkip,
+		StepsRun:   stepsRun,
 	}
 }
 
 func (j *job) Fault() bool {
-	return j.err != nil
-}
-
-func (j *job) Skiped() bool {
-	panic("implement me")
+	return j.status == Error
 }
 
 func (j *job) Success() bool {
@@ -139,90 +224,56 @@ func (j *job) Status() CompletionStatus {
 	return j.status
 }
 
-func (j *job) Error() error {
-	return j.err
-}
-
-func (j *job) run(input Values) (Values, error) {
+func (j *job) Run(ctx context.Context, input Values) (Values, error) {
 
 	values := getValues(input, j.inputs)
 
-	ctx := &jobContext{
-		job:    j,
-		values: values,
+	jobCtx := &jobContext{
+		Context: ctx,
+		job:     j,
+		values:  values,
 	}
 
-	j.runTasks(ctx)
-
-	output := getValues(ctx.values, j.outputs)
+	err := j.runTasks(jobCtx)
+	if err != nil {
+		j.status = Error
+		return nil, err
+	}
+	output := getValues(jobCtx.values, j.outputs)
 
 	return output, nil
 }
-func (j *job) runTasks(ctx *jobContext) {
+func (j *job) runTasks(ctx Context) error {
 
-	j.sortTasks()
-
-	for _, t := range j.tasks {
-		out, err := t.run(ctx, ctx.values)
-		if err != nil {
-			ctx.err = err
-		}
-		ctx.StoreValues(out)
+	doTask := func(step Task) error {
+		return j.runTask(ctx, step)
 	}
+
+	n, err := j.tasks.Do(doTask)
+
+	j.ranTasks = n
+
+	return err
 
 }
 
-func getValues(values Values, keyMap map[string]string) Values {
+func (j *job) runTask(ctx Context, step Task) error {
 
-	val := make(Values)
-
-	for k1, k2 := range keyMap {
-		val[k1] = values[k2]
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
 	}
 
-	return val
-}
-
-func (j *job) simulate(input Values) (Values, error) {
-
-	values := getValues(input, j.inputs)
-
-	ctx := &jobContext{
-		job:      j,
-		values:   values,
-		simulate: true,
+	output, err := step.Run(ctx)
+	if err != nil {
+		return err
 	}
+	ctx.StoreValues(output)
 
-	j.runTasks(ctx)
-
-	output := getValues(ctx.values, j.outputs)
-
-	return output, ctx.Err()
-
+	return nil
 }
 
 func (j *job) Name() string {
 	return j.name
-}
-
-func (j *job) sortTasks() {
-
-	sort.Slice(j.tasks, func(i, k int) bool {
-		return j.tasks[i].handler < j.tasks[k].handler
-	})
-
-}
-
-type Params map[string]interface{}
-type Inputs map[string]string
-type Values map[string]interface{}
-
-func copyValues(dest, src Values) {
-	if src == nil {
-		return
-	}
-
-	for key, value := range src {
-		dest[key] = value
-	}
 }

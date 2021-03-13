@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/khorevaa/onecup/internal/common"
 	"github.com/khorevaa/onecup/jobs"
+	"github.com/khorevaa/onecup/jobs/builder"
 	"github.com/khorevaa/onecup/tasks"
 )
 
@@ -22,14 +23,14 @@ type FileReleaseConfig struct {
 	Hash string `config:"hash" json:"hash"`
 }
 
-func (c *UpdateConfig) Task() (*jobs.TaskBuilder, error) {
+func (c *UpdateConfig) Task() (*jobs.taskBuilder, error) {
 
 	releaseStep, err := c.releaseStep()
 	if err != nil {
 		return nil, err
 	}
 
-	task := jobs.NewTask("update").Steps(
+	task := builder.NewTask("update").Steps(
 		releaseStep,
 		&tasks.Update{
 			LoadConfig:       c.LoadConfig,
@@ -47,7 +48,7 @@ func (c *UpdateConfig) Task() (*jobs.TaskBuilder, error) {
 	return task, nil
 }
 
-func (c *UpdateConfig) releaseStep() (jobs.Step, error) {
+func (c *UpdateConfig) releaseStep() (jobs.StepInterface, error) {
 
 	switch c.Release.Name() {
 

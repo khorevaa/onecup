@@ -11,7 +11,7 @@ func (r *Runner) Run(params Values) error {
 
 	for _, j := range r.jobs {
 
-		output, err := j.run(globalInput)
+		output, err := j.Run(globalInput)
 
 		if err != nil {
 			return err

@@ -4,7 +4,7 @@ import (
 	"github.com/khorevaa/onecup/jobs"
 )
 
-var _ jobs.Step = (*FileReleaseStep)(nil)
+var _ jobs.StepInterface = (*FileReleaseStep)(nil)
 
 type FileReleaseStep struct {
 	File string

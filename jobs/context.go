@@ -1,6 +1,9 @@
 package jobs
 
-import "fmt"
+import (
+	"context"
+	"fmt"
+)
 
 func newCtx(parent Context) *jobContext {
 	return &jobContext{
@@ -12,6 +15,11 @@ func newCtx(parent Context) *jobContext {
 }
 
 type Context interface {
+	context.Context
+
+	Values() Values
+	Output() Values
+
 	LoadValue(name string) (interface{}, bool)
 	MustLoadValue(name string) interface{}
 
@@ -29,6 +37,7 @@ type Context interface {
 }
 
 type jobContext struct {
+	context.Context
 	job     Job
 	values  Values
 	outputs Values
@@ -47,6 +56,16 @@ func (c *jobContext) Job() Job {
 	return c.job
 }
 
+func (c *jobContext) Values() Values {
+
+	return c.values
+}
+
+func (c *jobContext) Output() Values {
+
+	return c.outputs
+}
+
 func (c *jobContext) LoadValue(name string) (interface{}, bool) {
 
 	value, ok := c.values[name]
@@ -57,6 +76,7 @@ func (c *jobContext) LoadValue(name string) (interface{}, bool) {
 
 	return value, ok
 }
+
 func (c *jobContext) MustLoadValue(name string) interface{} {
 
 	value, ok := c.values[name]
@@ -90,21 +110,6 @@ func (c *jobContext) OutputValues(values Values) {
 	for name, value := range values {
 		c.OutputValue(name, value)
 	}
-}
-
-func (c *jobContext) Err() error {
-
-	if c.err != nil {
-		return c.err
-	}
-
-	var err error
-
-	if c.parent != nil {
-		err = c.parent.Err()
-	}
-
-	return err
 }
 
 func (c *jobContext) Fault() bool {

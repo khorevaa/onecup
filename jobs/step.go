@@ -2,49 +2,53 @@ package jobs
 
 import (
 	"errors"
+	"time"
 )
 
 type Action func(ctx Context) error
 
-type HandlerType int
-
-const (
-	BeforeType HandlerType = iota
-	DefaultType
-	AfterType
-	ErrorType
-	AlwaysType
-)
-
-func (h HandlerType) String() string {
-	switch h {
-	case BeforeType:
-		return "Before"
-	case DefaultType:
-		return "Default"
-	case AfterType:
-		return "After"
-	case ErrorType:
-		return "Error"
-	case AlwaysType:
-		return "Always"
-	default:
-		return "unknown handler type"
+func NewStep(name string, fn Action) Task {
+	return &taskStep{
+		name: name,
+		fn:   fn,
 	}
 }
 
-type TaskStep struct {
-	name    string
-	handler HandlerType
-	fn      Action
+var _ Task = (*taskStep)(nil)
+
+type taskStep struct {
+	name string
+	fn   Action
+
 	status  CompletionStatus
+	startAt time.Time
+	endAt   time.Time
 }
 
-func (s *TaskStep) Name() string {
+func (s *taskStep) Stats() Stats {
+	return Stats{
+		StartAt: s.startAt,
+		EndAt:   s.endAt,
+	}
+}
+
+func (s *taskStep) Fault() bool {
+	return s.Status() == Error
+}
+
+func (s *taskStep) Success() bool {
+	return s.Status() == Success
+}
+
+func (s *taskStep) Status() CompletionStatus {
+	return s.Status()
+}
+
+func (s *taskStep) Name() string {
 	return s.name
 }
 
-func (s *TaskStep) run(ctx *jobContext) (err error) {
+func (s *taskStep) Run(ctx Context) (output Values, err error) {
 
 	defer func() {
 		if rec := recover(); rec != nil {
@@ -59,25 +63,11 @@ func (s *TaskStep) run(ctx *jobContext) (err error) {
 		}
 	}()
 
-	if s.needSkip(ctx) {
-		return nil
-	}
-
 	err = s.fn(ctx)
-
 	if err != nil {
-		ctx.err = err
-		return err
+		s.status = Error
+		return
 	}
-
-	return nil
-}
-
-func (s *TaskStep) needSkip(ctx Context) bool {
-	if ctx.Fault() && !(s.handler == ErrorType || s.handler == AlwaysType) {
-		s.status = Skip
-		return true
-	}
-
-	return false
+	s.status = Success
+	return
 }

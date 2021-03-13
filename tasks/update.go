@@ -7,7 +7,7 @@ import (
 	"os"
 )
 
-var _ jobs.Step = (*Update)(nil)
+var _ jobs.StepInterface = (*Update)(nil)
 
 type Update struct {
 	File             string
@@ -58,7 +58,7 @@ func (j *Update) Name() string {
 	return name
 }
 
-var _ jobs.Step = (*Update)(nil)
+var _ jobs.StepInterface = (*Update)(nil)
 
 type RollbackUpdate struct {
 	HandlerType jobs.HandlerType

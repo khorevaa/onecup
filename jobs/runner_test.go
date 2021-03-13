@@ -48,7 +48,7 @@ func TestRunner_Run(t *testing.T) {
 				params: Values{
 					"v8-platform": "./path-to-v8",
 				},
-				job: NewJob("test", Inputs{
+				job: NewJobBuilder("test", Inputs{
 					"v8": "v8-platform",
 				}).
 					NewTask("task", DefaultType, Inputs{
@@ -89,7 +89,7 @@ func TestRunner_Run(t *testing.T) {
 				jobs:   []Job{tt.fields.job},
 			}
 			if err := r.Run(r.params); (err != nil) != tt.wantErr {
-				t.Errorf("run() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Run() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
 			got := r.jobs[0].Stats()
