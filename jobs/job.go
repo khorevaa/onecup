@@ -29,7 +29,7 @@ type Stats struct {
 
 type job struct {
 	name    string
-	tasks   Steps
+	tasks   []Task
 	startAt time.Time
 	endAt   time.Time
 
@@ -40,64 +40,6 @@ type job struct {
 	outputs     map[string]string
 	inputs      map[string]string
 	subscribers []*Subscribe
-}
-
-type Steps struct {
-	Before []Task
-	Steps  []Task
-	After  []Task
-	Error  []Task
-	Always []Task
-
-	err error
-}
-
-type RunStep func(step Task) error
-
-func (s Steps) Len() int {
-
-	return len(s.Before) +
-		len(s.Steps) +
-		len(s.After) +
-		len(s.Error) +
-		len(s.Always)
-}
-
-func (s Steps) Do(fn RunStep) (int, error) {
-	var total, n int
-	n, s.err = s.doSteps(fn, s.Before)
-	total += n
-	n, s.err = s.doSteps(fn, s.Steps)
-	total += n
-	n, s.err = s.doSteps(fn, s.After)
-	total += n
-	n, s.err = s.doError(fn, s.Error)
-	total += n
-	n, s.err = EachStep(s.Always).Do(fn)
-	total += n
-
-	return total, s.err
-
-}
-
-func (s Steps) doSteps(fn RunStep, steps []Task) (int, error) {
-
-	if s.err != nil {
-		return 0, s.err
-	}
-
-	return EachStep(steps).Do(fn)
-
-}
-
-func (s Steps) doError(fn RunStep, steps []Task) (int, error) {
-
-	if s.err == nil {
-		return 0, s.err
-	}
-
-	return EachStep(steps).Do(fn)
-
 }
 
 type EachStep []Task

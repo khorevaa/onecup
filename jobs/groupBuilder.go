@@ -3,7 +3,7 @@ package jobs
 type GroupBuilder interface {
 	JobTaskBuilder
 
-	NewTask(steps ...TaskInterface) GroupBuilder
+	NewTask(steps ...TaskObject) GroupBuilder
 	Task(step ...JobTaskBuilder) GroupBuilder
 }
 
@@ -26,7 +26,7 @@ func newGroupBuilder(name string, h HandlerType, inputsOutputs ...Inputs) GroupB
 	}
 }
 
-func NewGroupBuilder(name string, h HandlerType, inputs, output Inputs, tasks ...TaskInterface) GroupBuilder {
+func NewGroupBuilder(name string, h HandlerType, inputs, output Inputs, tasks ...TaskObject) GroupBuilder {
 
 	t := newGroupBuilder(name, h, inputs, output)
 
@@ -53,7 +53,7 @@ func (g groupBuilder) Build(job *job) Task {
 	panic("implement me")
 }
 
-func (g groupBuilder) NewTask(steps ...TaskInterface) GroupBuilder {
+func (g groupBuilder) NewTask(steps ...TaskObject) GroupBuilder {
 	panic("implement me")
 }
 

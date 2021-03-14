@@ -7,4 +7,5 @@ type Task interface {
 	Success() bool
 	Status() CompletionStatus
 	Run(ctx Context) (output Values, err error)
+	Skip(ctx Context, err error) bool
 }

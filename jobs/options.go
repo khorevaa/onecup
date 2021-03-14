@@ -1,57 +1,91 @@
 package jobs
 
-type Option func(o *Options)
+type TaskOption func(o *TaskOptions)
 
-type Options struct {
+type TaskOptions struct {
 	Inputs  Inputs
 	Outputs Inputs
-	Check   Check
+	Check   CheckFunc
 }
 
 type ApplyOption interface {
-	apply(opt Options)
+	apply(opt *TaskOptions)
 }
 
-func WithInput(inputs Inputs) Option {
-	return func(o *Options) {
+func WithInput(inputs Inputs) TaskOption {
+	return func(o *TaskOptions) {
 		o.Inputs = inputs
 	}
 }
 
-func WithOutput(outputs Inputs) Option {
-	return func(o *Options) {
+func WithOutput(outputs Inputs) TaskOption {
+	return func(o *TaskOptions) {
 		o.Outputs = outputs
 	}
 }
 
-type Check func(state CompletionStatus, ctx Context) bool
+type CheckFunc func(ctx Context, err error) bool
 
 var (
-	NotError = func(state CompletionStatus, ctx Context) bool {
-		return state != Error
+	NotErrorCheck = func(ctx Context, err error) bool {
+		return err == nil
 	}
 
-	OnError = func(state CompletionStatus, ctx Context) bool {
-		return state == Error
+	OnError = func() TaskOption {
+		return func(ctx Context, err error) bool {
+			return err != nil
+		}
 	}
 
-	Always = func(_ CompletionStatus, _ Context) bool {
-		return true
+	Always = func() TaskOption {
+		return func(o *TaskOptions) {
+			o.Check = func(_ Context, _ error) bool {
+				return true
+			}
+		}
 	}
 )
 
-func WithCheck(check Check) Option {
-	return func(o *Options) {
+func CheckAll(checks ...CheckFunc) CheckFunc {
+	return func(ctx Context, err error) bool {
+		for _, check := range checks {
+			if ok := check(ctx, err); !ok {
+				return false
+			}
+		}
+		return true
+	}
+}
+
+func CheckOneOf(checks ...CheckFunc) CheckFunc {
+	return func(ctx Context, err error) bool {
+		for _, check := range checks {
+			if ok := check(ctx, err); ok {
+				return true
+			}
+		}
+		return false
+	}
+}
+
+func WithOptions(opts TaskOptions) TaskOption {
+	return func(o *TaskOptions) {
+		o = &opts
+	}
+}
+
+func WithCheck(check CheckFunc) TaskOption {
+	return func(o *TaskOptions) {
 		o.Check = check
 	}
 }
 
 type CheckObject interface {
-	Check(state CompletionStatus, ctx Context) bool
+	Check(ctx Context, err error) bool
 }
 
-func WithCheckObj(obj CheckObject) Option {
-	return func(o *Options) {
+func WithCheckObj(obj CheckObject) TaskOption {
+	return func(o *TaskOptions) {
 		o.Check = obj.Check
 	}
 }

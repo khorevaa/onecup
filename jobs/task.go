@@ -6,53 +6,59 @@ import (
 
 var _ Task = (*task)(nil)
 
-func NewTask(job2 *job, name string, steps Steps, inputsOutputs ...Inputs) Task {
+type TaskAction func(ctx Context) error
 
-	var inputs, outputs Inputs
+func NewTask(name string, action TaskAction, opts ...TaskOption) Task {
 
-	if len(inputsOutputs) == 1 {
-		inputs = inputsOutputs[0]
-	}
-	if len(inputsOutputs) == 2 {
-		outputs = inputsOutputs[1]
-	}
-
-	return &task{
-		job:     job2,
-		name:    name,
-		inputs:  inputs,
-		outputs: outputs,
-		steps:   steps,
+	t := &task{
+		name:   name,
+		action: action,
+		check:  NotErrorCheck,
 	}
 
+	options := &TaskOptions{}
+
+	for _, opt := range opts {
+		opt(options)
+	}
+
+	t.applyOptions(options)
+
+	return t
 }
 
 type task struct {
-	job     *job
-	name    string
-	steps   Steps
-	startAt time.Time
-	endAt   time.Time
-
-	ranSteps int
-
-	status CompletionStatus
+	job    *job
+	name   string
+	action TaskAction
+	check  CheckFunc
 
 	outputs map[string]string
 	inputs  map[string]string
+
+	status  CompletionStatus
+	startAt time.Time
+	endAt   time.Time
+}
+
+func (t *task) applyOptions(opt *TaskOptions) {
+
+	t.inputs = opt.Inputs
+	t.outputs = opt.Outputs
+	t.check = opt.Check
+
+}
+
+func (t *task) Name() string {
+	return t.name
 }
 
 func (t *task) Stats() Stats {
 
-	count := t.steps.Len()
-
 	return Stats{
 
-		StartAt:    t.startAt,
-		EndAt:      t.endAt,
-		StepsCount: count,
-		StepsSkip:  count - t.ranSteps,
-		StepsRun:   t.ranSteps,
+		StartAt: t.startAt,
+		EndAt:   t.endAt,
 	}
 }
 
@@ -68,26 +74,37 @@ func (t *task) Status() CompletionStatus {
 	return t.status
 }
 
-func (t *task) eventComplete(err error) {
-	t.endAt = time.Now()
-	if err != nil {
-		_ = t.job.EmitCompleteErr(t.name, "", err, t.endAt.Sub(t.startAt).Nanoseconds())
-	} else {
-		t.job.EmitComplete(t.name, "", t.status, t.endAt.Sub(t.startAt).Nanoseconds())
+func (t *task) Skip(ctx Context, err error) bool {
+
+	if !t.check(ctx, err) {
+		t.status = Skip
+		return true
 	}
+
+	return false
+}
+
+func (t *task) finishTask(err error) {
+	t.endAt = time.Now()
 }
 
 func (t *task) Run(ctx Context) (output Values, err error) {
 
 	t.startAt = time.Now()
-	defer t.eventComplete(err)
+	defer t.finishTask(err)
 
 	values := getValues(ctx.Values(), t.inputs)
 
 	taskCtx := newTaskContext(ctx, t)
 	taskCtx.StoreValues(values)
 
-	err = t.runSteps(taskCtx)
+	select {
+	case <-ctx.Done():
+		return output, ctx.Err()
+	default:
+	}
+
+	err = t.action(taskCtx)
 	if err != nil {
 		t.status = Error
 		return
@@ -97,43 +114,4 @@ func (t *task) Run(ctx Context) (output Values, err error) {
 	t.status = Success
 
 	return
-}
-
-func (t *task) runSteps(ctx Context) error {
-
-	runStep := func(step Task) error {
-		return t.runStep(ctx, step)
-	}
-
-	n, err := t.steps.Do(runStep)
-	t.ranSteps = n
-
-	return err
-
-}
-
-func (t *task) runStep(ctx Context, step Task) error {
-
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	default:
-	}
-
-	startAt := time.Now()
-
-	output, err := step.Run(ctx)
-
-	if err != nil {
-		return t.job.EmitCompleteErr(t.name, step.Name(), err, time.Since(startAt).Nanoseconds())
-	}
-
-	t.job.EmitComplete(t.name, step.Name(), step.Status(), time.Since(startAt).Nanoseconds())
-	ctx.StoreValues(output)
-
-	return nil
-}
-
-func (t *task) Name() string {
-	return t.name
 }

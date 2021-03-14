@@ -1,14 +1,10 @@
 package jobs
 
 type JobBuilder interface {
-	Tasks(tasks ...TaskInterface) JobBuilder
-	Group(name string, inputs, outputs Inputs, tasks ...TaskInterface) JobBuilder
-
-	Before(tasks ...JobTaskBuilder) JobBuilder
-	Task(tasks ...JobTaskBuilder) JobBuilder
-	After(tasks ...JobTaskBuilder) JobBuilder
-	Error(tasks ...JobTaskBuilder) JobBuilder
-	Always(tasks ...JobTaskBuilder) JobBuilder
+	NewTask(name string, action TaskAction, opts ...TaskOption) JobBuilder
+	Tasks(tasks ...TaskObject) JobBuilder
+	Task(tasks ...TaskBuilder) JobBuilder
+	Group(task TaskBuilder) JobBuilder
 
 	Build() Job
 }
@@ -17,45 +13,37 @@ var _ JobBuilder = (*jobBuilder)(nil)
 
 type jobBuilder struct {
 	name            string
-	tasks           []JobTaskBuilder
+	tasks           []TaskBuilder
 	inputs, outputs Inputs
 }
 
-func (b *jobBuilder) Tasks(tasks ...TaskInterface) JobBuilder {
+func (b *jobBuilder) Group(task TaskBuilder) JobBuilder {
+	return b.Task(task)
+}
+
+func (b *jobBuilder) NewTask(name string, action TaskAction, opts ...TaskOption) JobBuilder {
+	t := taskBuilder{
+		name:   name,
+		action: action,
+	}
+	for _, opt := range opts {
+		opt(&t.options)
+	}
+
+	b.tasks = append(b.tasks, t)
+
+	return b
+}
+
+func (b *jobBuilder) Task(tasks ...TaskBuilder) JobBuilder {
+	b.tasks = append(b.tasks, tasks...)
+}
+
+func (b *jobBuilder) Tasks(tasks ...TaskObject) JobBuilder {
 	for _, task := range tasks {
-		b.tasks = append(b.tasks, NewTaskBuilderI(task))
+		b.tasks = append(b.tasks, &taskObjectBuilder{task})
 	}
 	return b
-}
-
-func (b *jobBuilder) Group(name string, inputs, outputs Inputs, tasks ...TaskInterface) JobBuilder {
-
-	task := NewGroupBuilder(name, DefaultType, inputs, outputs, tasks...)
-
-	b.tasks = append(b.tasks, task)
-
-	return b
-}
-
-func (b *jobBuilder) Before(tasks ...JobTaskBuilder) JobBuilder {
-	return b.Task(tasks...)
-}
-
-func (b *jobBuilder) Task(tasks ...JobTaskBuilder) JobBuilder {
-	b.tasks = append(b.tasks, tasks...)
-	return b
-}
-
-func (b *jobBuilder) After(tasks ...JobTaskBuilder) JobBuilder {
-	return b.Task(tasks...)
-}
-
-func (b *jobBuilder) Error(tasks ...JobTaskBuilder) JobBuilder {
-	return b.Task(tasks...)
-}
-
-func (b *jobBuilder) Always(tasks ...JobTaskBuilder) JobBuilder {
-	return b.Task(tasks...)
 }
 
 func NewJobBuilder(name string, inputsOutputs ...Inputs) JobBuilder {
@@ -72,7 +60,7 @@ func NewJobBuilder(name string, inputsOutputs ...Inputs) JobBuilder {
 		name:    name,
 		inputs:  inputs,
 		outputs: outputs,
-		tasks:   []JobTaskBuilder{},
+		tasks:   []TaskBuilder{},
 	}
 }
 
@@ -84,21 +72,8 @@ func (b *jobBuilder) Build() Job {
 		outputs: b.outputs,
 	}
 
-	steps := Steps{}
-
 	for _, builder := range b.tasks {
-		switch builder.Handler() {
-		case BeforeType:
-			steps.Before = append(steps.Before, builder.Build(j))
-		case DefaultType:
-			steps.Steps = append(steps.Steps, builder.Build(j))
-		case AfterType:
-			steps.After = append(steps.After, builder.Build(j))
-		case ErrorType:
-			steps.Error = append(steps.Error, builder.Build(j))
-		case AlwaysType:
-			steps.Always = append(steps.Always, builder.Build(j))
-		}
+		j.tasks = append(j.tasks, builder.Build())
 	}
 
 	return j
