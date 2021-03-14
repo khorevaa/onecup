@@ -27,7 +27,7 @@ type TaskBuilder interface {
 	Always(step ...StepBuilder) TaskBuilder
 }
 
-func newTaskBuilder(name string, h HandlerType, inputsOutputs ...Inputs) TaskBuilder {
+func NewTaskBuilder(name string, h HandlerType, inputsOutputs ...Inputs) TaskBuilder {
 	var inputs, outputs Inputs
 
 	if len(inputsOutputs) == 1 {
@@ -46,9 +46,9 @@ func newTaskBuilder(name string, h HandlerType, inputsOutputs ...Inputs) TaskBui
 	}
 }
 
-func NewTaskBuilder(i TaskInterface) JobTaskBuilder {
+func NewTaskBuilderI(i TaskInterface) JobTaskBuilder {
 
-	t := newTaskBuilder(i.Name(), i.Handler(), i.Inputs(), i.Outputs())
+	t := NewTaskBuilder(i.Name(), i.Handler(), i.Inputs(), i.Outputs())
 
 	t.NewStep(i.Steps()...)
 

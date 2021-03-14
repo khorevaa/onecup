@@ -17,7 +17,7 @@ func Step(step StepInterface) StepBuilder {
 	}
 }
 
-func newStepBuilder(name string, fn func(ctx Context) error, h HandlerType) StepBuilder {
+func NewStepBuilder(name string, fn func(ctx Context) error, h HandlerType) StepBuilder {
 
 	return stepBuilder{customStepBuilder{
 		name:    name,

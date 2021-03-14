@@ -3,7 +3,6 @@ package v1
 import (
 	"github.com/khorevaa/onecup/internal/common"
 	"github.com/khorevaa/onecup/jobs"
-	"github.com/khorevaa/onecup/jobs/builder"
 	"github.com/khorevaa/onecup/tasks"
 )
 
@@ -19,7 +18,7 @@ type FileBackupConfig struct {
 type SqlBackupConfig struct {
 }
 
-func (c *BackupConfig) Task() (task *jobs.taskBuilder, err error) {
+func (c *BackupConfig) Task() (task jobs.JobTaskBuilder, err error) {
 
 	switch c.config.Name() {
 
@@ -30,11 +29,11 @@ func (c *BackupConfig) Task() (task *jobs.taskBuilder, err error) {
 			return nil, err
 		}
 
-		b := builder.NewTask("Backup (file)", jobs.Inputs{}, jobs.Inputs{
+		b := jobs.NewTaskBuilder("Backup (file)", jobs.DefaultType, jobs.Inputs{}, jobs.Inputs{
 			"backup-file": "backup",
 		})
 
-		b.Steps(&tasks.DumpInfobase{
+		b.NewStep(&tasks.DumpInfobase{
 			FileTemplate: fileConfig.FileTemplate,
 			Dir:          fileConfig.Dir,
 		})

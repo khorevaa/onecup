@@ -11,6 +11,18 @@ type FileReleaseStep struct {
 	Hash string
 }
 
+func (j *FileReleaseStep) Steps() []jobs.StepInterface {
+	panic("implement me")
+}
+
+func (j *FileReleaseStep) Inputs() jobs.Inputs {
+	panic("implement me")
+}
+
+func (j *FileReleaseStep) Outputs() jobs.Inputs {
+	panic("implement me")
+}
+
 func (j *FileReleaseStep) Handler() jobs.HandlerType {
 	return jobs.DefaultType
 }

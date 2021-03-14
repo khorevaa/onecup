@@ -23,14 +23,18 @@ type FileReleaseConfig struct {
 	Hash string `config:"hash" json:"hash"`
 }
 
-func (c *UpdateConfig) Task() (*jobs.taskBuilder, error) {
+func (c *UpdateConfig) Task() (jobs.JobTaskBuilder, error) {
 
 	releaseStep, err := c.releaseStep()
 	if err != nil {
 		return nil, err
 	}
 
-	task := builder.NewTask("update").Steps(
+	updateTask := jobs.NewTaskBuilder()
+
+	task := jobs.NewGroupBuilder("update", jobs.DefaultType, jobs.Inputs{}, jobs.Inputs{})
+	task.Task(releaseStep)
+	.Steps(
 		releaseStep,
 		&tasks.Update{
 			LoadConfig:       c.LoadConfig,
@@ -48,7 +52,7 @@ func (c *UpdateConfig) Task() (*jobs.taskBuilder, error) {
 	return task, nil
 }
 
-func (c *UpdateConfig) releaseStep() (jobs.StepInterface, error) {
+func (c *UpdateConfig) releaseStep() (jobs.JobTaskBuilder, error) {
 
 	switch c.Release.Name() {
 
@@ -59,10 +63,12 @@ func (c *UpdateConfig) releaseStep() (jobs.StepInterface, error) {
 			return nil, err
 		}
 
-		return &tasks.FileReleaseStep{
+		return jobs.NewTaskBuilder("Release", jobs.DefaultType, jobs.Inputs{}, jobs.Inputs{
+			"backup-file": "backup",
+		}).NewStep(&tasks.FileReleaseStep{
 			File: fileConfig.File,
 			Hash: fileConfig.Hash,
-		}, nil
+		}), nil
 
 	case "binary":
 		panic("not implement")

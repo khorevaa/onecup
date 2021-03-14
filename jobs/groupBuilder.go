@@ -26,7 +26,7 @@ func newGroupBuilder(name string, h HandlerType, inputsOutputs ...Inputs) GroupB
 	}
 }
 
-func NewGroupBuilder(name string, h HandlerType, inputs, output Inputs, tasks ...TaskInterface) JobTaskBuilder {
+func NewGroupBuilder(name string, h HandlerType, inputs, output Inputs, tasks ...TaskInterface) GroupBuilder {
 
 	t := newGroupBuilder(name, h, inputs, output)
 

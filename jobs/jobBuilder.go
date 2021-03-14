@@ -23,7 +23,7 @@ type jobBuilder struct {
 
 func (b *jobBuilder) Tasks(tasks ...TaskInterface) JobBuilder {
 	for _, task := range tasks {
-		b.tasks = append(b.tasks, NewTaskBuilder(task))
+		b.tasks = append(b.tasks, NewTaskBuilderI(task))
 	}
 	return b
 }
