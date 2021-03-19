@@ -3,8 +3,8 @@ package jobs
 type TaskOption func(o *TaskOptions)
 
 type TaskOptions struct {
-	Inputs  Inputs
-	Outputs Inputs
+	Inputs  ValuesMap
+	Outputs ValuesMap
 	Check   CheckFunc
 }
 
@@ -12,13 +12,13 @@ type ApplyOption interface {
 	apply(opt *TaskOptions)
 }
 
-func WithInput(inputs Inputs) TaskOption {
+func Inputs(inputs ValuesMap) TaskOption {
 	return func(o *TaskOptions) {
 		o.Inputs = inputs
 	}
 }
 
-func WithOutput(outputs Inputs) TaskOption {
+func Outputs(outputs ValuesMap) TaskOption {
 	return func(o *TaskOptions) {
 		o.Outputs = outputs
 	}
@@ -31,17 +31,21 @@ var (
 		return err == nil
 	}
 
-	OnError = func() TaskOption {
-		return func(ctx Context, err error) bool {
-			return err != nil
-		}
+	OnErrorCheck = func(ctx Context, err error) bool {
+		return !NotErrorCheck(ctx, err)
 	}
 
-	Always = func() TaskOption {
-		return func(o *TaskOptions) {
-			o.Check = func(_ Context, _ error) bool {
-				return true
-			}
+	OnError = func(o *TaskOptions) {
+		o.Check = OnErrorCheck
+	}
+
+	NotError = func(o *TaskOptions) {
+		o.Check = NotErrorCheck
+	}
+
+	Always = func(o *TaskOptions) {
+		o.Check = func(_ Context, _ error) bool {
+			return true
 		}
 	}
 )
@@ -70,22 +74,12 @@ func CheckOneOf(checks ...CheckFunc) CheckFunc {
 
 func WithOptions(opts TaskOptions) TaskOption {
 	return func(o *TaskOptions) {
-		o = &opts
+		*o = opts
 	}
 }
 
 func WithCheck(check CheckFunc) TaskOption {
 	return func(o *TaskOptions) {
 		o.Check = check
-	}
-}
-
-type CheckObject interface {
-	Check(ctx Context, err error) bool
-}
-
-func WithCheckObj(obj CheckObject) TaskOption {
-	return func(o *TaskOptions) {
-		o.Check = obj.Check
 	}
 }

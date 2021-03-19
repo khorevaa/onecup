@@ -24,7 +24,7 @@ update:
   release:
     file:
       path: ./update.cfu
-  load-rawConfig: true`,
+  load-config: true`,
 			false,
 		},
 	}
@@ -35,7 +35,7 @@ update:
 			t.Fatal(err)
 		}
 		t.Run(tt.name, func(t *testing.T) {
-			if err := SimulateRunJobConfig(cfg); (err != nil) != tt.wantErr {
+			if err := RunJobConfig(cfg); (err != nil) != tt.wantErr {
 				t.Errorf("SimulateRunJobConfig() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

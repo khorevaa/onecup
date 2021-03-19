@@ -2,9 +2,8 @@ package jobs
 
 type JobBuilder interface {
 	NewTask(name string, action TaskAction, opts ...TaskOption) JobBuilder
-	Tasks(tasks ...TaskObject) JobBuilder
-	Task(tasks ...TaskBuilder) JobBuilder
-	Group(task TaskBuilder) JobBuilder
+	AddTask(task TaskBuilder) JobBuilder
+	Task(task TaskObject, opts ...TaskOption) JobBuilder
 
 	Build() Job
 }
@@ -14,15 +13,23 @@ var _ JobBuilder = (*jobBuilder)(nil)
 type jobBuilder struct {
 	name            string
 	tasks           []TaskBuilder
-	inputs, outputs Inputs
+	inputs, outputs ValuesMap
 }
 
-func (b *jobBuilder) Group(task TaskBuilder) JobBuilder {
-	return b.Task(task)
+func (b *jobBuilder) AddTask(task TaskBuilder) JobBuilder {
+
+	b.tasks = append(b.tasks, task)
+
+	return b
+}
+func (b *jobBuilder) Task(task TaskObject, opts ...TaskOption) JobBuilder {
+
+	b.tasks = append(b.tasks, &taskObjectBuilder{task, opts})
+	return b
 }
 
 func (b *jobBuilder) NewTask(name string, action TaskAction, opts ...TaskOption) JobBuilder {
-	t := taskBuilder{
+	t := &taskBuilder{
 		name:   name,
 		action: action,
 	}
@@ -35,19 +42,8 @@ func (b *jobBuilder) NewTask(name string, action TaskAction, opts ...TaskOption)
 	return b
 }
 
-func (b *jobBuilder) Task(tasks ...TaskBuilder) JobBuilder {
-	b.tasks = append(b.tasks, tasks...)
-}
-
-func (b *jobBuilder) Tasks(tasks ...TaskObject) JobBuilder {
-	for _, task := range tasks {
-		b.tasks = append(b.tasks, &taskObjectBuilder{task})
-	}
-	return b
-}
-
-func NewJobBuilder(name string, inputsOutputs ...Inputs) JobBuilder {
-	var inputs, outputs Inputs
+func NewJobBuilder(name string, inputsOutputs ...ValuesMap) JobBuilder {
+	var inputs, outputs ValuesMap
 
 	if len(inputsOutputs) == 1 {
 		inputs = inputsOutputs[0]

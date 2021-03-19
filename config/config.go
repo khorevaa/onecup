@@ -1,10 +1,12 @@
 package config
 
 import (
+	"context"
 	"github.com/khorevaa/onecup/internal/common"
 	_ "github.com/khorevaa/onecup/internal/config/v1"
 	"github.com/khorevaa/onecup/jobs"
 	v8 "github.com/v8platform/api"
+	"time"
 )
 
 type Config struct {
@@ -24,15 +26,10 @@ func (c *Config) Build(name string, ib *v8.Infobase, list jobs.List) error {
 }
 
 func RunJobConfig(c *Config) error {
-	runner := jobs.NewRunner(c.Jobs...)
-	return runner.Run(jobs.Params{
-		"infobase": c.Infobase,
-	})
-}
+	runner := jobs.NewJobsRunner(c.Jobs...)
+	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
 
-func SimulateRunJobConfig(c *Config) error {
-	runner := jobs.NewSimulateRunner(c.Jobs...)
-	return runner.Run(jobs.Params{
+	return runner.Run(ctx, jobs.Values{
 		"infobase": c.Infobase,
 		"options":  c.Options,
 	})

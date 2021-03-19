@@ -2,6 +2,7 @@ package jobs
 
 import (
 	"context"
+	"github.com/hashicorp/go-multierror"
 	"time"
 )
 
@@ -40,21 +41,6 @@ type job struct {
 	outputs     map[string]string
 	inputs      map[string]string
 	subscribers []*Subscribe
-}
-
-type EachStep []Task
-
-func (list EachStep) Do(fn func(step Task) error) (int, error) {
-	var n int
-	for _, s := range list {
-		n++
-		err := fn(s)
-		if err != nil {
-			return n, err
-		}
-	}
-
-	return n, nil
 }
 
 func (j *job) EmitEvent(task string, step string, event string) {
@@ -130,17 +116,7 @@ func (j *job) Subscribe(subscribe *Subscribe) {
 
 func (j *job) Stats() Stats {
 
-	count := j.tasks.Len()
-
-	var stepsCount, stepsRun, stepsSkip int
-
-	_, _ = j.tasks.Do(func(step Task) error {
-		stat := step.Stats()
-		stepsCount += stat.StepsCount
-		stepsRun += stat.StepsRun
-		stepsSkip += stat.StepsSkip
-		return nil
-	})
+	count := len(j.tasks)
 
 	return Stats{
 		StartAt:    j.startAt,
@@ -148,9 +124,6 @@ func (j *job) Stats() Stats {
 		TasksCount: count,
 		TasksSkip:  count - j.ranTasks,
 		TasksRun:   j.ranTasks,
-		StepsCount: stepsCount,
-		StepsSkip:  stepsSkip,
-		StepsRun:   stepsRun,
 	}
 }
 
@@ -187,15 +160,19 @@ func (j *job) Run(ctx context.Context, input Values) (Values, error) {
 }
 func (j *job) runTasks(ctx Context) error {
 
-	doTask := func(step Task) error {
-		return j.runTask(ctx, step)
+	var groupErr error
+	for _, step := range j.tasks {
+		if !step.Check(ctx, groupErr) {
+			continue
+		}
+		err := j.runTask(ctx, step)
+		if err != nil {
+			groupErr = multierror.Append(groupErr, err)
+		}
+		j.ranTasks++
 	}
 
-	n, err := j.tasks.Do(doTask)
-
-	j.ranTasks = n
-
-	return err
+	return groupErr
 
 }
 

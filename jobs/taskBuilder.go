@@ -3,9 +3,9 @@ package jobs
 type TaskObject interface {
 	Name() string
 	Action() TaskAction
-	Inputs() Inputs
-	Outputs() Inputs
-	Check() CheckFunc
+	Inputs() ValuesMap
+	Outputs() ValuesMap
+	//Check() CheckFunc // check setup on add task
 }
 
 type TaskBuilder interface {
@@ -30,13 +30,20 @@ var _ TaskBuilder = (*taskObjectBuilder)(nil)
 
 type taskObjectBuilder struct {
 	TaskObject
+	opts []TaskOption
 }
 
 func (b *taskObjectBuilder) Build() Task {
+	options := TaskOptions{
+		b.Inputs(),
+		b.Outputs(),
+		nil,
+	}
 
-	return NewTask(b.Name(), b.Action(),
-		WithCheck(b.Check()),
-		WithInput(b.Inputs()),
-		WithOutput(b.Outputs()))
+	for _, opt := range b.opts {
+		opt(&options)
+	}
+
+	return NewTask(b.Name(), b.Action(), WithOptions(options))
 
 }

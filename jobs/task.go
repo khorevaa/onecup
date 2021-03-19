@@ -74,14 +74,15 @@ func (t *task) Status() CompletionStatus {
 	return t.status
 }
 
-func (t *task) Skip(ctx Context, err error) bool {
+func (t *task) Check(ctx Context, err error) bool {
 
-	if !t.check(ctx, err) {
-		t.status = Skip
-		return true
+	t.status = Skip
+
+	if t.check == nil {
+		return NotErrorCheck(ctx, err)
 	}
 
-	return false
+	return t.check(ctx, err)
 }
 
 func (t *task) finishTask(err error) {

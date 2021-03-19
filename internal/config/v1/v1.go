@@ -27,7 +27,7 @@ func (v Config) Build(builder common.Builder) error {
 		return err
 	}
 
-	job := jobs.NewJobBuilder(v.Uuid, jobs.Inputs{
+	job := jobs.NewJobBuilder(v.Uuid, jobs.ValuesMap{
 		"infobase": "infobase",
 		"options":  "options",
 	})
@@ -54,70 +54,62 @@ func (v Config) Build(builder common.Builder) error {
 		return err
 	}
 
-	return builder.Build(v.Name, infobase, job.Build())
+	return builder.Build(v.Name, infobase, jobs.List{
+		job.Build(),
+	})
 }
 
-func (v Config) addUpdateJob(job *jobs.jobBuilder) error {
+func (v Config) addUpdateJob(job jobs.JobBuilder) error {
 
 	if v.Update == nil {
 		return nil
 	}
 
-	task, err := v.Update.Task()
+	err := v.Update.Task(job)
 
-	if err != nil {
-		return err
-	}
-
-	job.Task(task)
-
-	return nil
+	return err
 
 }
 
-func (v Config) addBackupJob(job *jobs.jobBuilder) error {
+func (v Config) addBackupJob(job jobs.JobBuilder) error {
 
 	if v.Backup == nil {
 		return nil
 	}
-	task, err := v.Backup.Task()
-	if err != nil {
-		return err
-	}
+	err := v.Backup.Task(job)
+	return err
 
-	job.Task(task)
-	return nil
 }
 
-func (v Config) addBlockSessionJob(job *jobs.jobBuilder) error {
+func (v Config) addBlockSessionJob(job jobs.JobBuilder) error {
 	if v.Sessions == nil {
 		return nil
 	}
 	return nil
 }
 
-func (v Config) addExtensionJob(job *jobs.jobBuilder) error {
+func (v Config) addExtensionJob(job jobs.JobBuilder) error {
 	if v.Extension == nil {
 		return nil
 	}
 	return nil
 }
 
-func (v Config) addEnterpriseJob(job *jobs.jobBuilder) error {
+func (v Config) addEnterpriseJob(job jobs.JobBuilder) error {
 	if v.Enterprise == nil {
 		return nil
 	}
 	return nil
 }
 
-func (v Config) addUnblockSessionJob(job *jobs.jobBuilder) error {
+func (v Config) addUnblockSessionJob(job jobs.JobBuilder) error {
 	if v.Sessions == nil {
 		return nil
 	}
 	return nil
 }
 
-func (v Config) addRestoreJob(job *jobs.jobBuilder) error {
+func (v Config) addRestoreJob(job jobs.JobBuilder) error {
 	if v.Backup == nil {
 		return nil
 	}

@@ -5,18 +5,18 @@ import (
 )
 
 const (
-	infobaseKey = "_infobase_"
-	optionsKey  = "_options_"
+	infobaseKey = "infobase"
+	optionsKey  = "options"
 
 	stepKey   = "_step_"
 	taskKey   = "_task_"
 	outputKey = "_output_"
 )
 
-func OutputFromCtx(ctx Context) Values {
+func OutputFromCtx(ctx Context) ValuesMap {
 
 	if val, ok := ctx.LoadValue(outputKey); ok {
-		return val.(Values)
+		return val.(ValuesMap)
 	}
 	return nil
 
@@ -59,7 +59,7 @@ func WithInfobase(parent Context, infobase *v8.Infobase) Context {
 	return withValue(parent, infobaseKey, infobase)
 }
 
-func newTaskContext(parent Context, t *task) *jobContext {
+func newTaskContext(parent Context, t Task) *jobContext {
 	return withValue(parent, taskKey, t)
 }
 

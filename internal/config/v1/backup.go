@@ -18,7 +18,7 @@ type FileBackupConfig struct {
 type SqlBackupConfig struct {
 }
 
-func (c *BackupConfig) Task() (task jobs.JobTaskBuilder, err error) {
+func (c *BackupConfig) Task(builder jobs.JobBuilder) (err error) {
 
 	switch c.config.Name() {
 
@@ -26,19 +26,13 @@ func (c *BackupConfig) Task() (task jobs.JobTaskBuilder, err error) {
 
 		var fileConfig FileBackupConfig
 		if err := c.config.Config().Unpack(&fileConfig); err != nil {
-			return nil, err
+			return err
 		}
 
-		b := jobs.NewTaskBuilder("Backup (file)", jobs.DefaultType, jobs.Inputs{}, jobs.Inputs{
-			"backup-file": "backup",
-		})
-
-		b.NewStep(&tasks.DumpInfobase{
+		builder.Task(&tasks.DumpInfobase{
 			FileTemplate: fileConfig.FileTemplate,
 			Dir:          fileConfig.Dir,
 		})
-
-		return b, err
 
 	case "sql":
 		panic("not implement")

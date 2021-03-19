@@ -7,20 +7,32 @@ import (
 	"path/filepath"
 )
 
+var _ jobs.TaskObject = (*DumpInfobase)(nil)
+
 type DumpInfobase struct {
 	FileTemplate string
 	Dir          string
 }
 
-func (c *DumpInfobase) Handler() jobs.HandlerType {
-	return jobs.DefaultType
+func (c *DumpInfobase) Action() jobs.TaskAction {
+	return c.action
+}
+
+func (c *DumpInfobase) Inputs() jobs.ValuesMap {
+	return nil
+}
+
+func (c *DumpInfobase) Outputs() jobs.ValuesMap {
+	return map[string]string{
+		"backup-file": "backup",
+	}
 }
 
 func (c *DumpInfobase) Name() string {
 	return "Dump infobase data"
 }
 
-func (c *DumpInfobase) Action(ctx jobs.Context) error {
+func (c *DumpInfobase) action(ctx jobs.Context) error {
 
 	ib := jobs.InfobaseFromCtx(ctx)
 	opts := jobs.OptionsFromCtx(ctx)
@@ -32,19 +44,31 @@ func (c *DumpInfobase) Action(ctx jobs.Context) error {
 	return err
 }
 
+var _ jobs.TaskObject = (*RestoreInfobase)(nil)
+
 type RestoreInfobase struct {
 	File string
 }
 
-func (c *RestoreInfobase) Handler() jobs.HandlerType {
-	return jobs.DefaultType
+func (c *RestoreInfobase) Action() jobs.TaskAction {
+	return c.action
+}
+
+func (c *RestoreInfobase) Inputs() jobs.ValuesMap {
+	return map[string]string{
+		"backup-file": "backup",
+	}
+}
+
+func (c *RestoreInfobase) Outputs() jobs.ValuesMap {
+	return nil
 }
 
 func (c *RestoreInfobase) Name() string {
 	return "Restore infobase data"
 }
 
-func (j *RestoreInfobase) Action(ctx jobs.Context) error {
+func (j *RestoreInfobase) action(ctx jobs.Context) error {
 
 	if len(j.File) == 0 {
 		j.File = ctx.MustLoadValue("file").(string)

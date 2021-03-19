@@ -7,8 +7,10 @@ import (
 
 func newCtx(parent Context) *jobContext {
 	return &jobContext{
+		Context:  parent,
 		job:      parent.Job(),
 		values:   make(Values),
+		outputs:  make(Values),
 		parent:   parent,
 		simulate: parent.Simulate(),
 	}

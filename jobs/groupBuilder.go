@@ -1,62 +1,67 @@
 package jobs
 
 type GroupBuilder interface {
-	JobTaskBuilder
+	TaskBuilder
 
-	NewTask(steps ...TaskObject) GroupBuilder
-	Task(step ...JobTaskBuilder) GroupBuilder
+	NewTask(name string, action TaskAction, opts ...TaskOption) GroupBuilder
+	AddTask(task TaskBuilder) GroupBuilder
+	Task(task TaskObject, opts ...TaskOption) GroupBuilder
 }
 
-func newGroupBuilder(name string, h HandlerType, inputsOutputs ...Inputs) GroupBuilder {
-	var inputs, outputs Inputs
+func Group(name string, opts ...TaskOption) GroupBuilder {
 
-	if len(inputsOutputs) == 1 {
-		inputs = inputsOutputs[0]
-	}
-	if len(inputsOutputs) == 2 {
-		outputs = inputsOutputs[1]
-	}
-
-	return &groupBuilder{
+	b := &groupBuilder{
 		name:    name,
-		handler: h,
-		inputs:  inputs,
-		outputs: outputs,
-		tasks:   []JobTaskBuilder{},
+		options: opts,
+		tasks:   []TaskBuilder{},
 	}
-}
 
-func NewGroupBuilder(name string, h HandlerType, inputs, output Inputs, tasks ...TaskObject) GroupBuilder {
-
-	t := newGroupBuilder(name, h, inputs, output)
-
-	t.NewTask(tasks...)
-
-	return t
+	return b
 
 }
 
 var _ GroupBuilder = (*groupBuilder)(nil)
 
 type groupBuilder struct {
-	name            string
-	inputs, outputs Inputs
-	tasks           []JobTaskBuilder
-	handler         HandlerType
+	name    string
+	options []TaskOption
+	tasks   []TaskBuilder
 }
 
-func (g groupBuilder) Handler() HandlerType {
-	return g.handler
+func (g *groupBuilder) Build() Task {
+
+	var steps []Task
+
+	for _, builder := range g.tasks {
+		steps = append(steps, builder.Build())
+	}
+	return NewGroup(g.name, steps, g.options...)
+
 }
 
-func (g groupBuilder) Build(job *job) Task {
-	panic("implement me")
+func (b *groupBuilder) AddTask(task TaskBuilder) GroupBuilder {
+
+	b.tasks = append(b.tasks, task)
+
+	return b
 }
 
-func (g groupBuilder) NewTask(steps ...TaskObject) GroupBuilder {
-	panic("implement me")
+func (b *groupBuilder) Task(task TaskObject, opts ...TaskOption) GroupBuilder {
+
+	b.tasks = append(b.tasks, &taskObjectBuilder{task, opts})
+	return b
 }
 
-func (g groupBuilder) Task(step ...JobTaskBuilder) GroupBuilder {
-	panic("implement me")
+func (b *groupBuilder) NewTask(name string, action TaskAction, opts ...TaskOption) GroupBuilder {
+	t := &taskBuilder{
+		name:   name,
+		action: action,
+	}
+	for _, opt := range opts {
+		opt(&t.options)
+	}
+
+	b.tasks = append(b.tasks, t)
+
+	return b
 }

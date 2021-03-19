@@ -4,7 +4,6 @@ import (
 	"errors"
 	"github.com/khorevaa/onecup/internal/common"
 	"github.com/khorevaa/onecup/jobs"
-	"github.com/khorevaa/onecup/jobs/builder"
 	"github.com/khorevaa/onecup/tasks"
 )
 
@@ -23,20 +22,17 @@ type FileReleaseConfig struct {
 	Hash string `config:"hash" json:"hash"`
 }
 
-func (c *UpdateConfig) Task() (jobs.JobTaskBuilder, error) {
+func (c *UpdateConfig) Task(builder jobs.JobBuilder) (err error) {
 
 	releaseStep, err := c.releaseStep()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	updateTask := jobs.NewTaskBuilder()
-
-	task := jobs.NewGroupBuilder("update", jobs.DefaultType, jobs.Inputs{}, jobs.Inputs{})
-	task.Task(releaseStep)
-	.Steps(
-		releaseStep,
-		&tasks.Update{
+	groupUpdate := jobs.Group("update")
+	groupUpdate.
+		Task(releaseStep).
+		Task(&tasks.Update{
 			LoadConfig:       c.LoadConfig,
 			Server:           c.Server,
 			Dynamic:          c.Dynamic,
@@ -44,15 +40,15 @@ func (c *UpdateConfig) Task() (jobs.JobTaskBuilder, error) {
 		})
 
 	if c.RollbackOnError {
-		task.Steps(&tasks.RollbackUpdate{
-			HandlerType: jobs.ErrorType,
-		})
+		groupUpdate.Task(&tasks.RollbackUpdate{}, jobs.OnError)
 	}
 
-	return task, nil
+	builder.AddTask(groupUpdate)
+
+	return
 }
 
-func (c *UpdateConfig) releaseStep() (jobs.JobTaskBuilder, error) {
+func (c *UpdateConfig) releaseStep() (jobs.TaskObject, error) {
 
 	switch c.Release.Name() {
 
@@ -63,12 +59,10 @@ func (c *UpdateConfig) releaseStep() (jobs.JobTaskBuilder, error) {
 			return nil, err
 		}
 
-		return jobs.NewTaskBuilder("Release", jobs.DefaultType, jobs.Inputs{}, jobs.Inputs{
-			"backup-file": "backup",
-		}).NewStep(&tasks.FileReleaseStep{
+		return &tasks.FileReleaseStep{
 			File: fileConfig.File,
 			Hash: fileConfig.Hash,
-		}), nil
+		}, nil
 
 	case "binary":
 		panic("not implement")
