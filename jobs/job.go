@@ -36,6 +36,8 @@ type job struct {
 
 	ranTasks int
 
+	values map[string]interface{}
+
 	status CompletionStatus
 
 	outputs     map[string]string

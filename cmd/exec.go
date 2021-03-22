@@ -53,7 +53,7 @@ func (c *execCommand) run(context *cli.Context) error {
 	}
 
 	if c.simulate {
-		err = config.SimulateRunJobConfig(jobConfig)
+		err = config.RunJobConfig(jobConfig)
 	} else {
 		err = config.RunJobConfig(jobConfig)
 	}

@@ -14,6 +14,7 @@ type jobBuilder struct {
 	name            string
 	tasks           []TaskBuilder
 	inputs, outputs ValuesMap
+	values          Values
 }
 
 func (b *jobBuilder) AddTask(task TaskBuilder) JobBuilder {
@@ -42,7 +43,7 @@ func (b *jobBuilder) NewTask(name string, action TaskAction, opts ...TaskOption)
 	return b
 }
 
-func NewJobBuilder(name string, inputsOutputs ...ValuesMap) JobBuilder {
+func NewJobBuilder(name string, values Values, inputsOutputs ...ValuesMap) JobBuilder {
 	var inputs, outputs ValuesMap
 
 	if len(inputsOutputs) == 1 {
@@ -56,6 +57,7 @@ func NewJobBuilder(name string, inputsOutputs ...ValuesMap) JobBuilder {
 		name:    name,
 		inputs:  inputs,
 		outputs: outputs,
+		values:  values,
 		tasks:   []TaskBuilder{},
 	}
 }
@@ -66,6 +68,7 @@ func (b *jobBuilder) Build() Job {
 		name:    b.name,
 		inputs:  b.inputs,
 		outputs: b.outputs,
+		values:  b.values,
 	}
 
 	for _, builder := range b.tasks {

@@ -7,6 +7,7 @@ import (
 )
 
 type InfobaseConfig struct {
+	Id            string
 	User          string
 	Password      string
 	ConnectString common.ConfigNamespace `config:"path,replace,required" json:"path"`
@@ -19,6 +20,17 @@ type FileInfobaseConfig struct {
 type ServerInfobaseConfig struct {
 	Serv string `config:"serv,required" json:"srv"`
 	Ref  string `config:"ref,required" json:"ref"`
+}
+
+func NewInfobaseConfig(name string, cfg *common.Config) (*InfobaseConfig, error) {
+
+	var c InfobaseConfig
+	if err := cfg.Unpack(&c); err != nil {
+		return nil, err
+	}
+
+	return &c, nil
+
 }
 
 func unpackInfobase(ibConfig *InfobaseConfig) (*v8.Infobase, error) {
