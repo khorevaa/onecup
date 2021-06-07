@@ -1,5 +1,4 @@
-module
-onecup
+module github.com/khorevaa/onecup
 
 go 1.16
 
