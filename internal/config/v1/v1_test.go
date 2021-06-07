@@ -99,7 +99,7 @@ jobs:
 func TestLoadConfigEmpty(t *testing.T) {
 
 	cfg, err := common.NewConfigFrom(`
-version: Config.0
+version: 1.0
 name: test_version1
 infobase:
   user: admin
