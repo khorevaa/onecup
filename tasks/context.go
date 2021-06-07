@@ -13,11 +13,17 @@ var contexts = make(map[string]ContextFactory)
 type ContextFactory func(config *common.Config) (JobContext, error)
 
 type JobContext interface {
+	Matrix() bool
 }
 
-type context struct {
+type singleContext struct {
+	id       string
 	infobase *v8.Infobase
 	options  []runner.Option
+}
+
+func (s singleContext) Matrix() bool {
+	return false
 }
 
 type singleContextConfig struct {
@@ -50,7 +56,10 @@ func NewSingle(cfg *common.Config) (JobContext, error) {
 		}
 	}
 
-	var ib v8.Infobase
+	ib := v8.Infobase{
+		User:     config.User,
+		Password: config.Password,
+	}
 
 	switch config.ConnectString.Name() {
 	case "file":
@@ -59,7 +68,7 @@ func NewSingle(cfg *common.Config) (JobContext, error) {
 			return nil, err
 		}
 
-		ib = *v8.NewFileInfobase(c.File)
+		ib.Connect = v8.FilePath{File: c.File}
 
 	case "server":
 		var c ServerInfobaseConfig
@@ -67,12 +76,17 @@ func NewSingle(cfg *common.Config) (JobContext, error) {
 			return nil, err
 		}
 
-		ib = v8.NewServerIB(c.Serv, c.Ref)
+		ib.Connect = v8.ServerPath{Server: c.Serv, Ref: c.Ref}
 
 	default:
 		return nil, errors.New("error connection infobase string")
 	}
-	return &ib, nil
+
+	return &singleContext{
+		id:       config.Id,
+		infobase: &ib,
+		options:  []runner.Option{},
+	}, nil
 
 }
 
@@ -94,7 +108,12 @@ func RegisterContextType(name string, f ContextFactory) {
 
 func CreateContext(contextType string, config *common.Config) (JobContext, error) {
 
-	return nil, nil
+	jobContext, err := NewContext(contextType, config)
+	if err != nil {
+		return nil, err
+	}
+
+	return jobContext, nil
 
 }
 
