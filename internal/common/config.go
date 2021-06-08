@@ -16,8 +16,8 @@ type Config ucfg.Config
 
 var configOpts = []ucfg.Option{
 	ucfg.PathSep("."),
-	ucfg.ResolveEnv,
-	ucfg.VarExp,
+	// ucfg.ResolveEnv,
+	// ucfg.VarExp,
 	//ucfg.StructTag("con"),
 	ucfg.ValidatorTag("onecup-validate"),
 	ucfg.PrependValues,

@@ -14,6 +14,7 @@ require (
 	github.com/urfave/cli/v2 v2.3.0
 	github.com/v8platform/api v0.2.2
 	github.com/v8platform/designer v0.2.0
+	github.com/v8platform/runner v0.3.1
 	github.com/wailsapp/wails v1.11.0
 	golang.org/x/net v0.0.0-20200822124328-c89045814202 // indirect
 	golang.org/x/sys v0.0.0-20200724161237-0e2f3a69832c // indirect

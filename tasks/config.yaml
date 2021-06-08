@@ -1,17 +1,3 @@
-package config
-
-import "testing"
-
-func TestSimulateRunJobConfig(t *testing.T) {
-
-	tests := []struct {
-		name       string
-		yamlConfig string
-		wantErr    bool
-	}{
-		{
-			"full config",
-			`
 context:
   auth:
     usr: "Администратор"
@@ -43,8 +29,8 @@ jobs:
         name: Блокировка сеансов пользователей
         with:
           block: true
-          uc-code: ${{ params.uc }}
-          lock-message: ${{ params.lock-message }}
+          uc-code: {{ params.uc }}
+          lock-message: {{ params.lock-message }}
         uses: user-sessions@v1
         outputs:
           unblock:
@@ -53,7 +39,7 @@ jobs:
         name: Резервная копия
         with:
           uc: ${{ params.uc }}
-          path-template: ./backup/${{ target.path.ref }}_${{ now.Format "02-01-2006 15:04:05"}}.dt
+          path-template: ./backup/{{ target.path.ref }}_{{ now.Format "02-01-2006 15:04:05"}}.dt
         uses: backup@v1
         out:
           - backup-file:
@@ -72,8 +58,8 @@ jobs:
       -
         name: Обновление конфигурации
         with:
-          uc: ${{ params.uc }}
-          release: ${{ params.release-file }}
+          uc: {{ params.uc }}
+          release: {{ params.release-file }}
           load-config: false
           server: false
           dynamic: false
@@ -83,13 +69,13 @@ jobs:
       -
         name: Выполнение обработчиков обновления в Предприятии
         with:
-          uc: ${{ params.uc }}
+          uc: {{ params.uc }}
         uses: enterprise-update@v1
       -
         name: Обновление расширений конфигурации
         uses: update-cfe@v1
         with:
-          uc: ${{ params.uc }}
+          uc: {{ params.uc }}
           cfe:
             - name: Расширение1
               version: 1.0.1
@@ -108,28 +94,13 @@ jobs:
 
       -
         name: Восстановление бекапа
-        if: ${{ failure }}
+        if: {{ failure }}
         uses: restore-ib@v1
         with:
-          backup-file: ${{ params.backup-file }}
+          backup-file: {{ params.backup-file }}
       -
         name: Разблокировка сеансов пользователей
-        if: ${{ always && params.unblock }}
+        if: {{ always && params.unblock }}
         uses: user-sessions@v1
         with:
           block: false
-`,
-			false,
-		},
-	}
-	for _, tt := range tests {
-
-		t.Run(tt.name, func(t *testing.T) {
-			_, err := NewConfigFrom(tt.yamlConfig)
-
-			if err != nil != tt.wantErr {
-				t.Errorf("SimulateRunJobConfig() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
-}

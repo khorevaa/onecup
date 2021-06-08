@@ -1,126 +1,157 @@
 package tasks
 
 import (
-	"errors"
-	"fmt"
-	"github.com/khorevaa/onecup/internal/common"
-	v8 "github.com/v8platform/api"
-	"github.com/v8platform/runner"
+	"bytes"
+	"html/template"
+	"os"
+	"strings"
+	"time"
 )
 
-var contexts = make(map[string]ContextFactory)
-
-type ContextFactory func(config *common.Config) (JobContext, error)
-
-type JobContext interface {
-	Matrix() bool
+type Auth struct {
+	User     string `config:"usr" json:"usr" yaml:"usr"`
+	Password string `config:"pwd" json:"pwd" yaml:"pwd"`
 }
 
-type singleContext struct {
-	id       string
-	infobase *v8.Infobase
-	options  []runner.Option
+type Context struct {
+	Auth        Auth              `config:"auth" json:"auth"`
+	env         map[string]string `config:"env"`
+	params      map[string]string `config:"params"`
+	Concurrency string            `config:"concurrency"`
+	Strategy    StrategyConfig    `config:"strategy"`
+	secrets     map[string]string `config:"secrets"`
 }
 
-func (s singleContext) Matrix() bool {
-	return false
+type ContextConfig struct {
+	Auth        Auth              `config:"auth" json:"auth"`
+	Env         map[string]string `config:"env"`
+	Params      map[string]string `config:"params"`
+	Concurrency string            `config:"concurrency"`
+	Strategy    StrategyConfig    `config:"strategy"`
 }
 
-type singleContextConfig struct {
-	Id            string                 `json:"id"`
-	User          string                 `json:"user"`
-	Password      string                 `json:"password"`
-	ConnectString common.ConfigNamespace `config:"path,replace,required" json:"path"`
+type StrategyConfig struct {
+	MaxParallel int `config:"max-parallel" json:"max_parallel" yaml:"max-parallel"`
 }
 
-type matrixContextConfig struct {
-	Matrix []singleContextConfig `config:",inline,required" json:"matrix"`
-}
+func NewContext(config ContextConfig) (*Context, error) {
 
-type FileInfobaseConfig struct {
-	File string `config:"file,required" json:"file"`
-}
+	ctx := Context{
 
-type ServerInfobaseConfig struct {
-	Serv string `config:"serv,required" json:"srv"`
-	Ref  string `config:"ref,required" json:"ref"`
-}
-
-func NewSingle(cfg *common.Config) (JobContext, error) {
-
-	config := singleContextConfig{}
-
-	if cfg != nil {
-		if err := cfg.Unpack(&config); err != nil {
-			return nil, err
-		}
+		Concurrency: config.Concurrency,
+		Strategy:    config.Strategy,
 	}
 
-	ib := v8.Infobase{
-		User:     config.User,
-		Password: config.Password,
-	}
+	ctx.env = buildEnv(config.Env)
 
-	switch config.ConnectString.Name() {
-	case "file":
-		var c FileInfobaseConfig
-		if err := config.ConnectString.Config().Unpack(&c); err != nil {
-			return nil, err
-		}
+	var err error
 
-		ib.Connect = v8.FilePath{File: c.File}
-
-	case "server":
-		var c ServerInfobaseConfig
-		if err := config.ConnectString.Config().Unpack(&c); err != nil {
-			return nil, err
-		}
-
-		ib.Connect = v8.ServerPath{Server: c.Serv, Ref: c.Ref}
-
-	default:
-		return nil, errors.New("error connection infobase string")
-	}
-
-	return &singleContext{
-		id:       config.Id,
-		infobase: &ib,
-		options:  []runner.Option{},
-	}, nil
-
-}
-
-func init() {
-	RegisterContextType("single", NewSingle)
-	RegisterContextType("matrix", NewMatrix)
-}
-
-func NewMatrix(config *common.Config) (JobContext, error) {
-	return nil, nil
-}
-
-func RegisterContextType(name string, f ContextFactory) {
-	if contexts[name] != nil {
-		panic(fmt.Errorf("context type '%v' exists already", name))
-	}
-	contexts[name] = f
-}
-
-func CreateContext(contextType string, config *common.Config) (JobContext, error) {
-
-	jobContext, err := NewContext(contextType, config)
+	ctx.params, err = buildParams(ctx, config.Params)
 	if err != nil {
 		return nil, err
 	}
+	// TODO Добавить secrets
+	ctx.Auth = Auth{
+		User:     ctx.MustExecuteTemplate(config.Auth.User),
+		Password: ctx.MustExecuteTemplate(config.Auth.Password),
+	}
 
-	return jobContext, nil
-
+	return &ctx, nil
 }
 
-func NewContext(name string, config *common.Config) (JobContext, error) {
-	factory := contexts[name]
-	if factory == nil {
-		return nil, fmt.Errorf("context type %v undefined", name)
+func buildParams(ctx Context, paramsConfig map[string]string) (map[string]string, error) {
+
+	params := make(map[string]string)
+
+	for key, value := range paramsConfig {
+
+		val := value
+		if strings.Contains(value, "{{") {
+			newval, err := ExecuteTemplate(ctx, value)
+			if err != nil {
+				return nil, err
+			}
+			val = newval
+		}
+		params[key] = val
+
 	}
-	return factory(config)
+	return params, nil
+}
+
+func buildEnv(env map[string]string) map[string]string {
+
+	envs := make(map[string]string)
+
+	for key, value := range env {
+		envs[key] = os.Getenv(value)
+	}
+
+	return envs
+}
+
+func (ctx *Context) ExecuteTemplate(tmpl string) (string, error) {
+
+	if !strings.Contains(tmpl, "{{") {
+		return tmpl, nil
+	}
+
+	funcMap := ctx.FuncMap()
+
+	var strBuf bytes.Buffer
+	// Create a new template and parse the letter into it.
+	t := template.Must(template.New("Context").Funcs(funcMap).Parse(tmpl))
+
+	err := t.Execute(&strBuf, ctx)
+	if err != nil {
+		return "", err
+	}
+
+	return strBuf.String(), nil
+}
+
+func (ctx *Context) MustExecuteTemplate(tmpl string) string {
+
+	result, err := ctx.ExecuteTemplate(tmpl)
+	if err != nil {
+		panic(err)
+	}
+
+	return result
+}
+
+func (ctx *Context) FuncMap() map[string]interface{} {
+	return template.FuncMap{
+		"env":     ctx.getEnv,
+		"secrets": ctx.getEnv,
+		"params":  ctx.getParams,
+		"auth":    ctx.getAuth,
+		"now":     time.Now,
+	}
+}
+
+func (ctx *Context) getEnv() map[string]string {
+	return ctx.env
+}
+
+func (ctx *Context) getParams() map[string]string {
+	return ctx.params
+}
+
+func (ctx *Context) getAuth() Auth {
+	return ctx.Auth
+}
+
+func ExecuteTemplate(ctx interface{}, tmpl string) (string, error) {
+
+	var strBuf bytes.Buffer
+	// Create a new template and parse the letter into it.
+	t := template.Must(template.New("Context").Parse(tmpl))
+
+	err := t.Execute(&strBuf, ctx)
+	if err != nil {
+		return "", err
+	}
+
+	return strBuf.String(), nil
 }
