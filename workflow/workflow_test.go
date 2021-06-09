@@ -120,6 +120,7 @@ jobs:
           block: false
 
 `)
+
 	require.NoError(t, err)
 
 	workflowConfig := config.Config{}

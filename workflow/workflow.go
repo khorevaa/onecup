@@ -31,7 +31,17 @@ func (t *Task) FuncMap() map[string]interface{} {
 		"secrets": t.workflow.getEnv,
 		"params":  t.workflow.getParams,
 		"output":  t.getOutputs,
+		"failure": t.failure,
+		"always":  t.always,
 	}
+}
+
+func (t *Task) failure() bool {
+	return t.State == Error
+}
+
+func (t *Task) always() bool {
+	return true
 }
 
 func (t *Task) getOutputs() Values {
@@ -211,20 +221,20 @@ func buildAuth(ctx interface{}, authConfig config.AuthConfig) Auth {
 	if len(authConfig.User) > 0 {
 
 		return Auth{
-			User:     authConfig.User.MustExecute(ctx),
-			Password: authConfig.Password.MustExecute(ctx),
+			User:     TemplateValue(authConfig.User).MustExecute(ctx),
+			Password: TemplateValue(authConfig.Password).MustExecute(ctx),
 		}
 	}
 
 	return Auth{}
 }
 
-func buildParams(ctx interface{}, paramsConfig map[string]config.TemplateValue) Values {
+func buildParams(ctx interface{}, paramsConfig map[string]string) Values {
 
 	params := make(Values)
 
 	for key, value := range paramsConfig {
-		params[key] = value.MustExecute(ctx)
+		params[key] = TemplateValue(value).MustExecute(ctx)
 
 	}
 	return params

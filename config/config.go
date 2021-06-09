@@ -2,24 +2,23 @@ package config
 
 import (
 	"github.com/khorevaa/onecup/internal/common"
-	_ "github.com/khorevaa/onecup/internal/config/v1"
 )
 
 type Config struct {
 	Name        string
-	Env         map[string]string        `config:"env"`
-	Params      map[string]TemplateValue `config:"params"`
-	Concurrency string                   `config:"concurrency"`
-	Strategy    StrategyConfig           `config:"strategy"`
+	Env         map[string]string `config:"env"`
+	Params      map[string]string `config:"params"`
+	Concurrency string            `config:"concurrency"`
+	Strategy    StrategyConfig    `config:"strategy"`
 	// Infobase    InfobaseConfig       `config:"infobase"`
 	InfobaseList InfobaseListConfig   `config:"infobase"`
 	Jobs         map[string]JobConfig `config:"jobs"`
 }
 
 type JobConfig struct {
-	Steps []StepConfig  `config:"steps,required" json:"steps"`
-	Need  []string      `config:"need" json:"need"`
-	If    TemplateValue `config:"if" json:"if"`
+	Steps []StepConfig `config:"steps,required" json:"steps"`
+	Need  []string     `config:"need" json:"need"`
+	If    string       `config:"if" json:"if"`
 }
 
 type ParamConfig struct {
@@ -35,14 +34,14 @@ type StepConfig struct {
 	Name  string                 `config:"name,required" json:"name,omitempty"`
 	With  map[string]interface{} `json:"with,omitempty"`
 	Uses  string                 `config:"uses,required" json:"uses"`
-	If    TemplateValue          `config:"if" json:"if"`
+	If    string                 `config:"if" json:"if"`
 	Out   map[string]ParamConfig `json:"out"`
 	Cache *CacheConfig           `config:"cache" json:"path"`
 }
 
 type AuthConfig struct {
-	User     TemplateValue `config:"usr" json:"usr" yaml:"usr"`
-	Password TemplateValue `config:"pwd" json:"pwd" yaml:"pwd"`
+	User     string `config:"usr" json:"usr" yaml:"usr"`
+	Password string `config:"pwd" json:"pwd" yaml:"pwd"`
 }
 
 type StrategyConfig struct {
