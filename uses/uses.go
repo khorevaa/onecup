@@ -4,15 +4,15 @@ import (
 	"context"
 	"fmt"
 	"github.com/khorevaa/onecup/internal/common"
-	"github.com/khorevaa/onecup/tasks"
 	"github.com/khorevaa/onecup/uses/sessionControl"
+	v8 "github.com/v8platform/api"
 	"strings"
 )
 
 var registeredUses = map[string]UseFactory{}
 
 type Use interface {
-	Action(ctx context.Context, target tasks.Target, outputs map[string]interface{}) error
+	Action(ctx context.Context, infobase v8.Infobase, outputs map[string]interface{}) error
 }
 
 type UseFactory func(cfg *common.Config) (Use, error)

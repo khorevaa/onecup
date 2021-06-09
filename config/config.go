@@ -6,15 +6,20 @@ import (
 )
 
 type Config struct {
-	Context ContextConfig `yaml:"context"`
-	Targets []TargetConfig
-	Jobs    map[string]JobConfig
+	Name        string
+	Env         map[string]string        `config:"env"`
+	Params      map[string]TemplateValue `config:"params"`
+	Concurrency string                   `config:"concurrency"`
+	Strategy    StrategyConfig           `config:"strategy"`
+	// Infobase    InfobaseConfig       `config:"infobase"`
+	InfobaseList InfobaseListConfig   `config:"infobase"`
+	Jobs         map[string]JobConfig `config:"jobs"`
 }
 
 type JobConfig struct {
-	Steps []StepConfig `config:"steps,required" json:"steps"`
-	Need  []string     `config:"need" json:"need"`
-	If    string       `config:"if" json:"if"`
+	Steps []StepConfig  `config:"steps,required" json:"steps"`
+	Need  []string      `config:"need" json:"need"`
+	If    TemplateValue `config:"if" json:"if"`
 }
 
 type ParamConfig struct {
@@ -30,29 +35,27 @@ type StepConfig struct {
 	Name  string                 `config:"name,required" json:"name,omitempty"`
 	With  map[string]interface{} `json:"with,omitempty"`
 	Uses  string                 `config:"uses,required" json:"uses"`
-	If    string                 `config:"if" json:"if"`
+	If    TemplateValue          `config:"if" json:"if"`
 	Out   map[string]ParamConfig `json:"out"`
 	Cache *CacheConfig           `config:"cache" json:"path"`
 }
 
 type AuthConfig struct {
-	User     string `config:"usr" json:"usr" yaml:"usr"`
-	Password string `config:"pwd" json:"pwd" yaml:"pwd"`
-}
-
-type ContextConfig struct {
-	Auth        AuthConfig        `config:"auth" json:"auth"`
-	Env         map[string]string `config:"env"`
-	Params      map[string]string `config:"params"`
-	Concurrency string            `config:"concurrency"`
-	Strategy    StrategyConfig    `config:"strategy"`
+	User     TemplateValue `config:"usr" json:"usr" yaml:"usr"`
+	Password TemplateValue `config:"pwd" json:"pwd" yaml:"pwd"`
 }
 
 type StrategyConfig struct {
 	MaxParallel int `config:"max-parallel" json:"max_parallel" yaml:"max-parallel"`
 }
 
-type TargetConfig struct {
+type InfobaseListConfig struct {
+	Auth     AuthConfig       `config:"auth" json:"auth"`
+	Infobase InfobaseConfig   `config:",inline" json:"infobase"`
+	Items    []InfobaseConfig `config:"items" json:"items"`
+}
+
+type InfobaseConfig struct {
 	ID   string                 `json:"id,omitempty"`
 	Name string                 `json:"name,omitempty"`
 	Auth AuthConfig             `json:"auth,omitempty"`
