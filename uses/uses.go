@@ -1,21 +1,16 @@
 package uses
 
 import (
-	"context"
 	"fmt"
 	"github.com/khorevaa/onecup/internal/common"
 	"github.com/khorevaa/onecup/uses/sessionControl"
-	v8 "github.com/v8platform/api"
+	"github.com/khorevaa/onecup/workflow/use"
 	"strings"
 )
 
 var registeredUses = map[string]UseFactory{}
 
-type Use interface {
-	Action(ctx context.Context, infobase v8.Infobase, outputs map[string]interface{}) error
-}
-
-type UseFactory func(cfg *common.Config) (Use, error)
+type UseFactory func(cfg *common.Config) (use.Use, error)
 
 func init() {
 	RegisterUseType("session-control", sessionControl.New)
@@ -34,7 +29,7 @@ func getUseTypeVersion(useTypeString string) (string, string) {
 	return useTyoe, useVersion
 }
 
-func CreateUseWithParams(useTypeString string, params map[string]interface{}) (Use, error) {
+func CreateUseWithParams(useTypeString string, params map[string]interface{}) (use.Use, error) {
 
 	config := common.MustNewConfigFrom(params)
 
@@ -42,7 +37,7 @@ func CreateUseWithParams(useTypeString string, params map[string]interface{}) (U
 
 }
 
-func CreateUse(useTypeString string, config *common.Config) (Use, error) {
+func CreateUse(useTypeString string, config *common.Config) (use.Use, error) {
 
 	useType, _ := getUseTypeVersion(useTypeString)
 
@@ -61,7 +56,7 @@ func RegisterUseType(name string, f UseFactory) {
 	registeredUses[name] = f
 }
 
-func NewUse(name string, config *common.Config) (Use, error) {
+func NewUse(name string, config *common.Config) (use.Use, error) {
 	factory := registeredUses[name]
 	if factory == nil {
 		return nil, fmt.Errorf("use type %v undefined", name)

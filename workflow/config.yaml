@@ -11,17 +11,6 @@ strategy:
   max-parallel: 2
 
 infobase:
-  base_test:
-    name: "База данных обмена"
-    auth:
-      usr: "Администратор"
-      pwd: "Пароль"
-    path:
-      server:
-        srv: "srv-app"
-        ref: "База данных"
-
-infobases:
   auth:
     usr: "Администратор"
     pwd: "Пароль"

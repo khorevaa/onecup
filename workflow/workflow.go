@@ -2,13 +2,16 @@ package workflow
 
 import (
 	"context"
+	"fmt"
 	"github.com/khorevaa/onecup/config"
+	uuid "github.com/satori/go.uuid"
 	"html/template"
 	"os"
 	"strings"
 )
 
 type Task struct {
+	ID        string
 	Name      string
 	Group     string
 	Infobase  Infobase
@@ -90,19 +93,30 @@ func NewWorkflow(cfg config.Config) (*Workflow, error) {
 
 func (w *Workflow) buildTasks(jobsConfig map[string]config.JobConfig) {
 
-	for jobKey, jobConfig := range jobsConfig {
+	for _, infobase := range w.InfobaseList {
 
-		newTask := &Task{
-			Name:    jobKey,
-			Outputs: Values{},
+		group := uuid.NewV4().String()
 
-			workflow:  w,
-			jobConfig: jobConfig,
+		for jobKey, jobConfig := range jobsConfig {
+
+			newTask := &Task{
+				ID:        jobKey,
+				Name:      fmt.Sprintf("%s (%s)", jobKey, infobase.Name),
+				Group:     group,
+				Outputs:   make(Values),
+				Condition: Condition(jobConfig.If),
+				State:     Pending,
+				Infobase:  infobase,
+
+				workflow:  w,
+				jobConfig: jobConfig,
+			}
+
+			buildSteps(newTask)
+
+			w.Tasks = append(w.Tasks, newTask)
+
 		}
-
-		buildSteps(newTask)
-
-		w.Tasks = append(w.Tasks, newTask)
 	}
 
 }
@@ -117,6 +131,12 @@ func buildSteps(task *Task) {
 			ID:        generateIDFromString(stepConfig.Name),
 			Name:      stepConfig.Name,
 			Condition: Condition(stepConfig.If),
+			State:     Pending,
+			task:      task,
+			Uses:      stepConfig.Uses,
+			Params:    stepConfig.With,
+			// Outputs:   stepConfig.Out,
+			// Cache: stepConfig.Cache,
 		}
 
 		task.Steps = append(task.Steps, step)
@@ -128,25 +148,6 @@ func generateIDFromString(name string) string {
 
 	val := strings.ReplaceAll(name, " ", "_")
 	return val
-
-}
-
-func buildStepList(jobsConfig []config.StepConfig) []Job {
-
-	var jobs []Job
-
-	for jobKey, jobConfig := range jobsConfig {
-
-		newJob := Job{
-			Name:    jobKey,
-			Outputs: Values{},
-			Steps:   nil,
-		}
-
-		jobs = append(jobs)
-	}
-
-	return jobs
 
 }
 
