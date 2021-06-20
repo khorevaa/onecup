@@ -10,71 +10,6 @@ import (
 	"strings"
 )
 
-type Task struct {
-	ID        string
-	Name      string
-	Group     string
-	Infobase  Infobase
-	Outputs   Values
-	Steps     []Step
-	State     TaskState
-	Condition Condition
-	Needs     []string
-
-	jobConfig config.JobConfig
-	workflow  *Workflow
-}
-
-func (t *Task) FuncMap() map[string]interface{} {
-	return template.FuncMap{
-		"env":     t.workflow.getEnv,
-		"secrets": t.workflow.getEnv,
-		"params":  t.workflow.getParams,
-		"output":  t.getOutputs,
-		"failure": t.failure,
-		"always":  t.always,
-	}
-}
-
-func (t *Task) failure() bool {
-	return t.State == Error
-}
-
-func (t *Task) always() bool {
-	return true
-}
-
-func (t *Task) getOutputs() Values {
-	return t.Outputs
-}
-
-type TaskState int
-
-const (
-	Pending TaskState = iota
-	Running
-	Skip
-	Success
-	Error
-)
-
-func (h TaskState) String() string {
-	switch h {
-	case Pending:
-		return "Pending"
-	case Running:
-		return "Running"
-	case Success:
-		return "Success"
-	case Skip:
-		return "Skip"
-	case Error:
-		return "Error"
-	default:
-		return "unknown"
-	}
-}
-
 type Workflow struct {
 	Name   string
 	Env    Values
@@ -83,7 +18,9 @@ type Workflow struct {
 	MaxParallel int
 
 	InfobaseList []Infobase
-	Tasks        []*Task
+	Tasks        []*Job
+
+	CurrentTaskIdx int
 }
 
 func NewWorkflow(cfg config.Config) (*Workflow, error) {
@@ -109,7 +46,7 @@ func (w *Workflow) buildTasks(jobsConfig map[string]config.JobConfig) {
 
 		for jobKey, jobConfig := range jobsConfig {
 
-			newTask := &Task{
+			newTask := &Job{
 				ID:        jobKey,
 				Name:      fmt.Sprintf("%s (%s)", jobKey, infobase.Name),
 				Group:     group,
@@ -131,7 +68,7 @@ func (w *Workflow) buildTasks(jobsConfig map[string]config.JobConfig) {
 
 }
 
-func buildSteps(task *Task) {
+func buildSteps(task *Job) {
 
 	stepsConfig := task.jobConfig.Steps
 
@@ -142,7 +79,7 @@ func buildSteps(task *Task) {
 			Name:      stepConfig.Name,
 			Condition: Condition(stepConfig.If),
 			State:     Pending,
-			task:      task,
+			job:       task,
 			Uses:      stepConfig.Uses,
 			Params:    stepConfig.With,
 			// Outputs:   stepConfig.Out,
@@ -164,6 +101,22 @@ func generateIDFromString(name string) string {
 func (w *Workflow) Run(ctx context.Context) error {
 
 	return nil
+}
+
+func (w *Workflow) doNextTask(ctx context.Context) bool {
+
+	if len(w.Tasks) > 0 && len(w.Tasks) < w.CurrentTaskIdx {
+		return false
+	}
+
+	task := w.Tasks[w.CurrentTaskIdx]
+
+	task.Run(ctx)
+
+	w.CurrentTaskIdx++
+
+	return true
+
 }
 
 func (w *Workflow) FuncMap() map[string]interface{} {

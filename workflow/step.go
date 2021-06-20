@@ -14,19 +14,19 @@ type Step struct {
 	Uses      string
 	Condition Condition
 	Cache     *CacheData
-	State     TaskState
+	State     JobState
 
-	task *Task
+	job *Job
 }
 
 func (s *Step) Run(ctx context.Context) error {
 
-	if s.Condition.False(s.task) {
+	if s.Condition.False(s.job) {
 		s.State = Skip
 		return nil
 	}
 
-	params, err := buildStepParams(s.task, s.Params)
+	params, err := buildStepParams(s.job, s.Params)
 
 	if err != nil {
 		s.State = Error
@@ -41,7 +41,7 @@ func (s *Step) Run(ctx context.Context) error {
 
 	s.State = Running
 
-	err = Use.Action(ctx, s.task.Infobase.Infobase, s.task.Outputs)
+	err = Use.Action(ctx, s.job.Infobase.Infobase, s.job.Outputs)
 
 	if err != nil {
 		s.State = Error
