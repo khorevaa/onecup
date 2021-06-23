@@ -1,10 +1,7 @@
 package context
 
-import (
-	"context"
-	v8 "github.com/v8platform/api"
-)
-
 type Use interface {
-	Action(ctx context.Context, infobase v8.Infobase, outputs map[string]interface{}) error
+	Action(ctx Context) (outputs Outputs, err error)
 }
+
+type Outputs map[string]interface{}
