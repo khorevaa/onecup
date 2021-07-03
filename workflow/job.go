@@ -1,8 +1,8 @@
 package workflow
 
 import (
-	"context"
 	"github.com/khorevaa/onecup/config"
+	"github.com/khorevaa/onecup/workflow/context"
 	"html/template"
 )
 

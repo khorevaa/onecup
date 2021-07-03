@@ -4,10 +4,12 @@ import (
 	"context"
 	"fmt"
 	"github.com/khorevaa/onecup/config"
+	"github.com/khorevaa/onecup/internal/common"
 	uuid "github.com/satori/go.uuid"
 	"html/template"
 	"os"
 	"strings"
+	"sync"
 )
 
 type Workflow struct {
@@ -68,9 +70,9 @@ func (w *Workflow) buildTasks(jobsConfig map[string]config.JobConfig) {
 
 }
 
-func buildSteps(task *Job) {
+func buildSteps(job *Job) {
 
-	stepsConfig := task.jobConfig.Steps
+	stepsConfig := job.jobConfig.Steps
 
 	for _, stepConfig := range stepsConfig {
 
@@ -79,14 +81,14 @@ func buildSteps(task *Job) {
 			Name:      stepConfig.Name,
 			Condition: Condition(stepConfig.If),
 			State:     Pending,
-			job:       task,
+			job:       job,
 			Uses:      stepConfig.Uses,
 			Params:    stepConfig.With,
 			// Outputs:   stepConfig.Out,
 			// Cache: stepConfig.Cache,
 		}
 
-		task.Steps = append(task.Steps, step)
+		job.Steps = append(job.Steps, step)
 	}
 
 }
@@ -99,6 +101,22 @@ func generateIDFromString(name string) string {
 }
 
 func (w *Workflow) Run(ctx context.Context) error {
+
+	limit := make(chan struct{}, w.MaxParallel)
+	wg := sync.WaitGroup{}
+	for _, task := range w.Tasks {
+		wg.Add(1)
+		go func(t *Job) {
+
+			limit <- struct{}{}
+			t.Run(ctx)
+			wg.Done()
+			<-limit
+
+		}(task)
+	}
+
+	wg.Wait()
 
 	return nil
 }
@@ -174,8 +192,8 @@ func buildAuth(ctx interface{}, authConfig config.AuthConfig) Auth {
 	if len(authConfig.User) > 0 {
 
 		return Auth{
-			User:     TemplateValue(authConfig.User).MustExecute(ctx),
-			Password: TemplateValue(authConfig.Password).MustExecute(ctx),
+			User:     common.TemplateValue(authConfig.User).MustExecute(ctx),
+			Password: common.TemplateValue(authConfig.Password).MustExecute(ctx),
 		}
 	}
 
@@ -187,7 +205,7 @@ func buildParams(ctx interface{}, paramsConfig map[string]string) Values {
 	params := make(Values)
 
 	for key, value := range paramsConfig {
-		params[key] = TemplateValue(value).MustExecute(ctx)
+		params[key] = common.TemplateValue(value).MustExecute(ctx)
 
 	}
 	return params
