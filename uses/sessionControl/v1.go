@@ -1,10 +1,8 @@
 package sessionControl
 
 import (
-	context2 "context"
 	"github.com/khorevaa/onecup/internal/common"
 	"github.com/khorevaa/onecup/workflow/context"
-	v8 "github.com/v8platform/api"
 	"time"
 )
 
@@ -17,7 +15,7 @@ type SessionControl struct {
 	SessionFilter []string      `json:"session-filter,omitempty"`
 }
 
-func (s SessionControl) Action(ctx context2.Context, infobase v8.Infobase, outputs map[string]interface{}) error {
+func (s SessionControl) Action(ctx context.Context) (outputs context.Outputs, err error) {
 	panic("implement me")
 }
 

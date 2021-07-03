@@ -1,9 +1,9 @@
 package workflow
 
 import (
-	"context"
-	"github.com/khorevaa/onecup/config"
+	"github.com/khorevaa/onecup/internal/common"
 	"github.com/khorevaa/onecup/uses"
+	"github.com/khorevaa/onecup/workflow/context"
 )
 
 type Step struct {
@@ -41,7 +41,7 @@ func (s *Step) Run(ctx context.Context) error {
 
 	s.State = Running
 
-	err = Use.Action(ctx, s.job.Infobase.Infobase, s.job.Outputs)
+	_, err = Use.Action(ctx)
 
 	if err != nil {
 		s.State = Error
@@ -61,7 +61,7 @@ func buildStepParams(ctx interface{}, params map[string]interface{}) (Values, er
 		switch typed := value.(type) {
 		case string:
 
-			val[key], err = config.TemplateValue(typed).Execute(ctx)
+			val[key], err = common.TemplateValue(typed).Execute(ctx)
 
 			if err != nil {
 				return nil, err
@@ -84,7 +84,7 @@ type CacheData struct {
 	Path string
 }
 
-type Condition config.TemplateValue
+type Condition common.TemplateValue
 
 func (c Condition) False(ctx interface{}) bool {
 
